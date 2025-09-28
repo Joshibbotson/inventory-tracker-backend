@@ -4,11 +4,11 @@ export function getAllowedOrigins(): string[] {
   if (env === 'production') {
     return [
       'http://192.168.1.1:4200',
-      'https://stock-checker-supreme.netlify.app/',
+      'https://stock-checker-supreme.netlify.app',
     ];
   } else if (env === 'staging') {
     return [
-      'https://stock-checker-supreme.netlify.app/',
+      'https://stock-checker-supreme.netlify.app',
       'capacitor://localhost',
     ];
   } else {
