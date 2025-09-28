@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -11,6 +11,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { SaleModule } from './modules/sale/sale.module';
 import { StockAdjustmentsModule } from './modules/stock-adjustments/stock-adjustments.module';
 import { UnitsModule } from './modules/units/units.module';
+import { JwtAuthMiddleware } from './core/middleware/jwt-auth.middleware';
 
 @Module({
   imports: [
@@ -30,4 +31,24 @@ import { UnitsModule } from './modules/units/units.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(JwtAuthMiddleware)
+      .exclude(
+        // Local auth routes
+        { path: 'auth/local/login', method: RequestMethod.ALL },
+        { path: 'auth/register', method: RequestMethod.ALL },
+
+        // Email verification routes (no auth needed)
+        { path: 'auth/verify-email', method: RequestMethod.ALL },
+        { path: 'auth/resend-verification', method: RequestMethod.ALL },
+
+        // Password reset routes (no auth needed)
+        { path: 'auth/reset-password', method: RequestMethod.ALL },
+        { path: 'auth/confirm-password-reset', method: RequestMethod.ALL },
+        { path: 'auth/validate-reset-token', method: RequestMethod.ALL },
+      )
+      .forRoutes('*');
+  }
+}
