@@ -1,9 +1,9 @@
 import { Controller, Get, Delete, UseGuards } from '@nestjs/common';
 import { UserId } from 'src/core/decorators/user-id.decorator';
 import { UserService } from '../services/user.service';
-import { User } from 'src/core/decorators/user.decorator';
 import { UserDocument } from '../schemas/User.schema';
 import { AuthGuard } from 'src/core/guards/Auth.guard';
+import { GetUser } from 'src/core/decorators/user.decorator';
 
 @Controller('user-details')
 @UseGuards(AuthGuard)
@@ -12,7 +12,7 @@ export class UserController {
 
   /** gets the user from the jwt middleware */
   @Get()
-  fetchCurrentUser(@User() user: UserDocument) {
+  fetchCurrentUser(@GetUser() user: UserDocument) {
     return {
       name: user.name,
       email: user.email,

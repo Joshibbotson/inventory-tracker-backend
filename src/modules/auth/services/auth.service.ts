@@ -46,13 +46,14 @@ export class AuthService {
     };
   }
 
-  async handleRegister(
-    name: string,
-    email: string,
-    password: string,
-    country: string,
-  ) {
-    const user = await this.createLocalUser(name, email, password, country);
+  async handleRegister(registerDto: {
+    name: string;
+    email: string;
+    password: string;
+    country: string;
+    businessName?: string;
+  }) {
+    const user = await this.createLocalUser(registerDto);
 
     // Send verification email
     await this.sendVerificationEmail(user);
@@ -106,12 +107,14 @@ export class AuthService {
     return user;
   }
 
-  async createLocalUser(
-    name: string,
-    email: string,
-    password: string,
-    country: string,
-  ): Promise<UserDocument> {
+  async createLocalUser(registerDto: {
+    name: string;
+    email: string;
+    password: string;
+    country: string;
+    businessName?: string;
+  }): Promise<UserDocument> {
+    const { name, email, password, country, businessName } = registerDto;
     const existingUser = await this.userModel.findOne({ email }).exec();
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
@@ -130,6 +133,7 @@ export class AuthService {
       name,
       email,
       country,
+      businessName,
       password: hashedPassword,
       createdAt: now,
       updatedAt: now,
