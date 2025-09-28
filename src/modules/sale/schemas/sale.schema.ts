@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { Product } from 'src/modules/products/schemas/product.schema';
+import { Product } from '../../products/schemas/product.schema';
 import { User } from 'src/modules/user/schemas/User.schema';
 
 export type SaleDocument = HydratedDocument<Sale>;
@@ -23,11 +23,19 @@ export class Sale {
   soldBy: User;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'StockAdjustment' }] })
-  stockAdjustments: Types.ObjectId[]; // References to all material deductions
+  stockAdjustments: Types.ObjectId[];
+
+  @Prop({ default: 'completed', enum: ['completed', 'voided'] })
+  status: string;
+
+  @Prop()
+  voidReason: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  voidedBy: string;
+
+  @Prop()
+  voidedAt: Date;
 }
 
 export const SaleSchema = SchemaFactory.createForClass(Sale);
-
-// Index for sales reporting
-SaleSchema.index({ createdAt: -1 });
-SaleSchema.index({ product: 1, createdAt: -1 });
