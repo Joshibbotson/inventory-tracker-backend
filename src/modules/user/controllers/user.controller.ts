@@ -1,9 +1,9 @@
 import { Controller, Get, Delete, UseGuards } from '@nestjs/common';
-import { UserId } from 'src/modules/core/decorators/user-id.decorator';
+import { UserId } from 'src/core/decorators/user-id.decorator';
 import { UserService } from '../services/user.service';
-import { User } from 'src/modules/core/decorators/user.decorator';
+import { User } from 'src/core/decorators/user.decorator';
 import { UserDocument } from '../schemas/User.schema';
-import { AuthGuard } from 'src/modules/core/guards/Auth.guard';
+import { AuthGuard } from 'src/core/guards/Auth.guard';
 
 @Controller('user-details')
 @UseGuards(AuthGuard)

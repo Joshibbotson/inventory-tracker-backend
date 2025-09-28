@@ -206,7 +206,7 @@ ${appName} Team
 </head>
 <body style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; line-height: 1.6;">
   <div style="text-align: center; margin-bottom: 25px;">
-    <img src="https://i.imgur.com/Dpb1kqc.png" alt="${appName} Logo" style="max-height: 60px; width: auto;">
+    <img src="https://i.imgur.com/Aobatoz.png" alt="${appName} Logo" style="max-height: 60px; width: auto;">
   </div>
   
   <div style="background-color: #f9f9f9; border-radius: 8px; padding: 25px; border-left: 4px solid #4285f4;">
@@ -433,7 +433,7 @@ ${appName} Team
 </head>
 <body style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; line-height: 1.6;">
   <div style="text-align: center; margin-bottom: 25px;">
-    <img src="https://i.imgur.com/Dpb1kqc.png" alt="${appName} Logo" style="max-height: 60px; width: auto;">
+    <img src="https://i.imgur.com/Aobatoz.png" alt="${appName} Logo" style="max-height: 60px; width: auto;">
   </div>
   
   <div style="background-color: #f9f9f9; border-radius: 8px; padding: 25px; border-left: 4px solid #4285f4;">
@@ -550,7 +550,7 @@ ${appName} Team
 </head>
 <body style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; line-height: 1.6;">
   <div style="text-align: center; margin-bottom: 25px;">
-    <img src="https://i.imgur.com/Dpb1kqc.png" alt="${appName} Logo" style="max-height: 60px; width: auto;">
+    <img src="https://i.imgur.com/Aobatoz.png" alt="${appName} Logo" style="max-height: 60px; width: auto;">
   </div>
   
   <div style="background-color: #f9f9f9; border-radius: 8px; padding: 25px; border-left: 4px solid #28a745;">
