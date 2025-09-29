@@ -10,8 +10,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { MaterialsService } from './materials.service';
-import { Material, MaterialCategory } from './schemas/material.schema';
+import { MaterialsService } from '../services/materials.service';
+import { Material, MaterialCategory } from '../schemas/material.schema';
 
 @Controller('materials')
 export class MaterialsController {
@@ -20,6 +20,17 @@ export class MaterialsController {
   @Get()
   async findAll(): Promise<Material[]> {
     return this.materialsService.findAll();
+  }
+
+  @Get('statistics')
+  async getStatistics(): Promise<{
+    totalMaterials: number;
+    totalValue: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+    categoryCounts: { [key: string]: number };
+  }> {
+    return this.materialsService.getStatistics();
   }
 
   @Get(':id')
@@ -33,7 +44,7 @@ export class MaterialsController {
 
   @Post()
   async create(
-    @Body() createMaterialDto: Partial<Material>,
+    @Body() createMaterialDto: Partial<Omit<Material, 'currentStock'>>,
   ): Promise<Material> {
     return this.materialsService.create(createMaterialDto);
   }
@@ -41,7 +52,7 @@ export class MaterialsController {
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateMaterialDto: Partial<Material>,
+    @Body() updateMaterialDto: Partial<Omit<Material, 'currentStock'>>,
   ): Promise<Material> {
     const updated = await this.materialsService.update(id, updateMaterialDto);
     if (!updated) {
@@ -78,56 +89,13 @@ export class MaterialsController {
     return this.materialsService.findOutOfStock();
   }
 
-  @Post(':id/adjust-stock')
-  async adjustStock(
-    @Param('id') id: string,
-    @Body()
-    adjustment: {
-      quantity: number;
-      type: 'increase' | 'decrease' | 'set';
-      notes?: string;
-    },
-  ): Promise<Material> {
-    return this.materialsService.adjustStock(id, adjustment);
-  }
-
-  @Post('bulk-adjust')
-  async bulkAdjustStock(
-    @Body()
-    body: {
-      adjustments: Array<{
-        materialId: string;
-        quantity: number;
-        type: 'decrease';
-      }>;
-    },
-  ): Promise<Material[]> {
-    return this.materialsService.bulkAdjustStock(body.adjustments);
-  }
-
   @Get(':id/adjustments')
   async getAdjustmentHistory(@Param('id') id: string) {
     return this.materialsService.getAdjustmentHistory(id);
   }
 
-  @Post(':id/restock-minimum')
-  async restockToMinimum(@Param('id') id: string): Promise<Material> {
-    return this.materialsService.restockToMinimum(id);
-  }
-
   @Get('search')
   async search(@Query('q') query: string): Promise<Material[]> {
     return this.materialsService.search(query);
-  }
-
-  @Get('statistics')
-  async getStatistics(): Promise<{
-    totalMaterials: number;
-    totalValue: number;
-    lowStockCount: number;
-    outOfStockCount: number;
-    categoryCounts: { [key: string]: number };
-  }> {
-    return this.materialsService.getStatistics();
   }
 }

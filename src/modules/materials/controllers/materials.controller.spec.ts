@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MaterialsController } from './materials.controller';
-import { MaterialsService } from './materials.service';
+import { MaterialsService } from '../services/materials.service';
 
 describe('MaterialsController', () => {
   let controller: MaterialsController;

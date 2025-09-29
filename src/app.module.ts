@@ -8,10 +8,11 @@ import { UserModule } from './modules/user/user.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { MaterialsModule } from './modules/materials/materials.module';
 import { ProductsModule } from './modules/products/products.module';
-import { SaleModule } from './modules/sale/sale.module';
 import { StockAdjustmentsModule } from './modules/stock-adjustments/stock-adjustments.module';
 import { UnitsModule } from './modules/units/units.module';
 import { JwtAuthMiddleware } from './core/middleware/jwt-auth.middleware';
+import { ProductionModule } from './modules/production/production.module';
+import { MaterialOrderModule } from './modules/material-order/material-order.module';
 
 @Module({
   imports: [
@@ -23,10 +24,11 @@ import { JwtAuthMiddleware } from './core/middleware/jwt-auth.middleware';
     UserModule,
     InventoryModule,
     MaterialsModule,
+    MaterialOrderModule,
     ProductsModule,
-    SaleModule,
     StockAdjustmentsModule,
     UnitsModule,
+    ProductionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

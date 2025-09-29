@@ -16,6 +16,8 @@ export enum MaterialCategory {
 
 @Schema({ timestamps: true })
 export class Material {
+  _id?: Types.ObjectId;
+
   @Prop({ required: true })
   name: string;
 
@@ -32,7 +34,7 @@ export class Material {
   minimumStock: number;
 
   @Prop({ default: 0, min: 0 })
-  costPerUnit: number;
+  averageCost: number;
 
   @Prop()
   supplier: string;

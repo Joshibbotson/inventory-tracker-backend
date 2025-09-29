@@ -31,14 +31,25 @@ export class StockAdjustmentsService {
   ) {}
 
   /**
-   * Deducts stock for all recipe items in a product when sold.
+   * Handles stock deduction for production batch.
+   * Deducts materials based on BOM when producing finished goods.
    * Returns IDs of created stock adjustments.
    */
-  async handleSaleDeduction(
+  async handleProductionDeduction(
     productId: string,
-    quantitySold: number,
-    soldBy?: string,
-  ): Promise<Types.ObjectId[]> {
+    quantityProduced: number,
+    producedBy?: string,
+    batchNumber?: string,
+  ): Promise<{
+    adjustmentIds: Types.ObjectId[];
+    materialCosts: Array<{
+      material: Types.ObjectId;
+      quantity: number;
+      unitCost: number;
+      totalCost: number;
+    }>;
+    totalCost: number;
+  }> {
     const product = await this.productModel
       .findById(productId)
       .populate('recipe.material recipe.unit')
@@ -47,11 +58,26 @@ export class StockAdjustmentsService {
     if (!product) throw new BadRequestException('Product not found');
 
     const adjustmentIds: Types.ObjectId[] = [];
+    const materialCosts: Array<{
+      material: Types.ObjectId;
+      quantity: number;
+      unitCost: number;
+      totalCost: number;
+    }> = [];
+    let totalCost = 0;
 
     for (const recipeItem of product.recipe) {
-      const material = recipeItem.material as MaterialDocument;
-      const requiredQty = recipeItem.quantity * quantitySold;
+      const material = await this.materialModel.findById(
+        recipeItem.material._id || recipeItem.material,
+      );
 
+      if (!material) {
+        throw new NotFoundException(
+          `Material ${recipeItem.material.name} not found`,
+        );
+      }
+
+      const requiredQty = recipeItem.quantity * quantityProduced;
       const previousStock = material.currentStock;
       const newStock = previousStock - requiredQty;
 
@@ -61,106 +87,52 @@ export class StockAdjustmentsService {
         );
       }
 
+      // Calculate cost for this material
+      const materialCost = requiredQty * material.averageCost;
+      totalCost += materialCost;
+
+      materialCosts.push({
+        material: material._id,
+        quantity: requiredQty,
+        unitCost: material.averageCost,
+        totalCost: materialCost,
+      });
+
       // Update material stock
       material.currentStock = newStock;
       await material.save();
 
-      // Create stock adjustment (unit comes from recipeItem.unit)
+      // Create stock adjustment for production
       const adjustment = await this.stockAdjustmentModel.create({
         material: material._id,
-        adjustmentType: AdjustmentType.SALE,
-        quantity: -requiredQty,
+        itemType: 'material',
+        adjustmentType: AdjustmentType.PRODUCTION,
+        quantity: -requiredQty, // Negative for deduction
         unit: recipeItem.unit,
         relatedProduct: product._id,
-        adjustedBy: soldBy ? new Types.ObjectId(soldBy) : undefined,
+        adjustedBy: producedBy ? new Types.ObjectId(producedBy) : undefined,
         previousStock,
         newStock,
-        notes: `Sale deduction for ${quantitySold} units of ${product.name}`,
+        reason: `Production of ${quantityProduced} units of ${product.name}`,
+        batchNumber,
       });
 
       adjustmentIds.push(adjustment._id);
     }
 
-    return adjustmentIds;
+    return { adjustmentIds, materialCosts, totalCost };
   }
 
   /**
-   * Reverses stock adjustments when a sale is voided.
-   * Restores the materials to their previous quantities.
+   * Handles stock increase for material orders/purchases.
+   * Updates rolling average cost.
    */
-  async reverseSaleAdjustments(
-    adjustmentIds: Types.ObjectId[],
-    reason: string,
-    voidedBy: string,
-  ): Promise<Types.ObjectId[]> {
-    const reversalIds: Types.ObjectId[] = [];
-
-    for (const adjustmentId of adjustmentIds) {
-      // Find the original adjustment
-      const originalAdjustment = await this.stockAdjustmentModel
-        .findById(adjustmentId)
-        .populate('material unit')
-        .exec();
-
-      if (!originalAdjustment) {
-        throw new NotFoundException(
-          `Stock adjustment ${adjustmentId.toString()} not found`,
-        );
-      }
-
-      // Get the material
-      const material = await this.materialModel.findById(
-        originalAdjustment.material,
-      );
-
-      if (!material) {
-        throw new NotFoundException(
-          `Material ${originalAdjustment.material.name} not found`,
-        );
-      }
-
-      // Calculate the reversal quantity (opposite of original)
-      const reversalQuantity = -originalAdjustment.quantity;
-      const previousStock = material.currentStock;
-      const newStock = previousStock + reversalQuantity;
-
-      // Update material stock
-      material.currentStock = newStock;
-      await material.save();
-
-      // Create reversal adjustment
-      const reversalAdjustment = await this.stockAdjustmentModel.create({
-        material: material._id,
-        adjustmentType: AdjustmentType.RETURN,
-        quantity: reversalQuantity,
-        unit: originalAdjustment.unit,
-        relatedProduct: originalAdjustment.relatedProduct,
-        adjustedBy: new Types.ObjectId(voidedBy),
-        previousStock,
-        newStock,
-        notes: `Void reversal: ${reason}. Original adjustment: ${adjustmentId.toString()}`,
-        originalAdjustment: adjustmentId, // Reference to the original adjustment
-      });
-
-      // Mark original adjustment as reversed
-      originalAdjustment.isReversed = true;
-      originalAdjustment.reversalAdjustment = reversalAdjustment._id;
-      await originalAdjustment.save();
-
-      reversalIds.push(reversalAdjustment._id);
-    }
-
-    return reversalIds;
-  }
-
-  /**
-   * Creates a manual stock adjustment for a material.
-   */
-  async createManualAdjustment(
+  async handleMaterialPurchase(
     materialId: string,
     quantity: number,
-    type: 'increase' | 'decrease' | 'set',
-    adjustedBy: string,
+    totalCost: number,
+    purchasedBy?: string,
+    orderNumber?: string,
     notes?: string,
   ): Promise<StockAdjustment> {
     const material = await this.materialModel.findById(materialId);
@@ -170,24 +142,120 @@ export class StockAdjustmentsService {
     }
 
     const previousStock = material.currentStock;
+    const newStock = previousStock + quantity;
+    const unitCost = totalCost / quantity;
+
+    // Update rolling average cost
+    const oldTotalValue = previousStock * material.averageCost;
+    const newTotalValue = oldTotalValue + totalCost;
+    material.averageCost = newTotalValue / newStock;
+    material.currentStock = newStock;
+    await material.save();
+
+    // Create adjustment record
+    const adjustment = await this.stockAdjustmentModel.create({
+      material: material._id,
+      itemType: 'material',
+      adjustmentType: AdjustmentType.PURCHASE,
+      quantity: quantity, // Positive for addition
+      unit: material.unit,
+      adjustedBy: purchasedBy ? new Types.ObjectId(purchasedBy) : undefined,
+      previousStock,
+      newStock,
+      unitCost,
+      totalCost,
+      orderNumber,
+      reason: notes || `Material purchase - Order: ${orderNumber}`,
+    });
+
+    return adjustment;
+  }
+
+  /**
+   * Handles finished product stock increase after production.
+   */
+  async handleProductionIncrease(
+    productId: string,
+    quantity: number,
+    unitCost: number,
+    producedBy?: string,
+    batchNumber?: string,
+  ): Promise<StockAdjustment> {
+    const product = await this.productModel.findById(productId);
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const previousStock = product.currentStock;
+    const newStock = previousStock + quantity;
+    const totalCost = unitCost * quantity;
+
+    // Update rolling average cost for product
+    const oldTotalValue = previousStock * product.averageUnitCost;
+    const newTotalValue = oldTotalValue + totalCost;
+    product.averageUnitCost = newTotalValue / newStock;
+    product.currentStock = newStock;
+    await product.save();
+
+    // Create adjustment record
+    const adjustment = await this.stockAdjustmentModel.create({
+      product: product._id,
+      itemType: 'product',
+      adjustmentType: AdjustmentType.PRODUCTION,
+      quantity: quantity, // Positive for addition
+      adjustedBy: producedBy ? new Types.ObjectId(producedBy) : undefined,
+      previousStock,
+      newStock,
+      unitCost,
+      totalCost,
+      batchNumber,
+      reason: `Production batch ${batchNumber} - ${quantity} units produced`,
+    });
+
+    return adjustment;
+  }
+
+  /**
+   * Creates a manual stock adjustment for materials or products.
+   * Used for corrections, breakage, returns, etc.
+   */
+  async createManualAdjustment(
+    itemId: string,
+    itemType: 'material' | 'product',
+    quantity: number,
+    type: 'increase' | 'decrease' | 'correction',
+    reason: string,
+    adjustedBy: string,
+  ): Promise<StockAdjustment> {
+    let item: any;
     let newStock: number;
-    let adjustmentQuantity: number;
     let adjustmentType: AdjustmentType;
+
+    if (itemType === 'material') {
+      item = await this.materialModel.findById(itemId);
+    } else {
+      item = await this.productModel.findById(itemId);
+    }
+
+    if (!item) {
+      throw new NotFoundException(`${itemType} not found`);
+    }
+    const previousStock: number = item.currentStock;
 
     switch (type) {
       case 'increase':
         newStock = previousStock + quantity;
-        adjustmentQuantity = quantity;
-        adjustmentType = AdjustmentType.PURCHASE;
+        adjustmentType = AdjustmentType.CORRECTION;
         break;
       case 'decrease':
         newStock = previousStock - quantity;
-        adjustmentQuantity = -quantity;
-        adjustmentType = AdjustmentType.WASTE;
+        adjustmentType = AdjustmentType.BREAKAGE;
+        quantity = -quantity; // Store as negative
         break;
-      case 'set':
-        newStock = quantity;
-        adjustmentQuantity = quantity - previousStock;
+      case 'correction':
+        newStock = quantity; // Set to specific value
+        quantity = quantity - previousStock; // Calculate difference
         adjustmentType = AdjustmentType.CORRECTION;
         break;
     }
@@ -196,73 +264,95 @@ export class StockAdjustmentsService {
       throw new BadRequestException('Stock cannot be negative');
     }
 
-    // Update material stock
-    material.currentStock = newStock;
-    await material.save();
+    // Update stock
+    item.currentStock = newStock;
+    await item.save();
 
     // Create adjustment record
-    const adjustment = await this.stockAdjustmentModel.create({
-      material: material._id,
+    const adjustmentData: any = {
+      itemType,
       adjustmentType,
-      quantity: adjustmentQuantity,
-      unit: material.unit,
+      quantity,
       adjustedBy: new Types.ObjectId(adjustedBy),
       previousStock,
       newStock,
-      notes: notes || `Manual ${type} adjustment`,
-    });
+      reason,
+    };
 
+    if (itemType === 'material') {
+      adjustmentData.material = item._id;
+      adjustmentData.unit = item.unit;
+    } else {
+      adjustmentData.product = item._id;
+    }
+
+    const adjustment = await this.stockAdjustmentModel.create(adjustmentData);
     return adjustment;
   }
 
   /**
-   * Gets adjustment history for a material.
+   * Gets adjustment history for a material or product.
    */
-  async getMaterialAdjustmentHistory(
-    materialId: string,
+  async getAdjustmentHistory(
+    itemId: string,
+    itemType: 'material' | 'product',
     limit: number = 50,
   ): Promise<StockAdjustment[]> {
+    const query: any = { itemType };
+
+    if (itemType === 'material') {
+      query.material = itemId;
+    } else {
+      query.product = itemId;
+    }
+
     return this.stockAdjustmentModel
-      .find({ material: materialId })
+      .find(query)
       .populate('adjustedBy', 'firstName lastName email')
-      .populate('relatedProduct', 'name sku')
+      .populate('material', 'name sku')
+      .populate('product', 'name sku')
       .sort('-createdAt')
       .limit(limit)
       .exec();
   }
 
   /**
-   * Gets all adjustments for a specific sale.
+   * Gets all adjustments for a specific production batch.
    */
-  async getSaleAdjustments(saleId: string): Promise<StockAdjustment[]> {
+  async getProductionBatchAdjustments(
+    batchNumber: string,
+  ): Promise<StockAdjustment[]> {
     return this.stockAdjustmentModel
-      .find({ relatedSale: saleId })
+      .find({ batchNumber })
       .populate('material', 'name sku')
+      .populate('product', 'name sku')
       .populate('unit', 'name abbreviation')
       .exec();
   }
 
   /**
-   * Bulk adjust stock for multiple materials (used in inventory counts).
+   * Bulk adjust stock for multiple items (used in inventory counts).
    */
   async bulkAdjustStock(
     adjustments: Array<{
-      materialId: string;
+      itemId: string;
+      itemType: 'material' | 'product';
       quantity: number;
-      type: 'increase' | 'decrease' | 'set';
+      type: 'increase' | 'decrease' | 'correction';
+      reason: string;
     }>,
     adjustedBy: string,
-    notes?: string,
   ): Promise<StockAdjustment[]> {
     const results: StockAdjustment[] = [];
 
     for (const adjustment of adjustments) {
       const result = await this.createManualAdjustment(
-        adjustment.materialId,
+        adjustment.itemId,
+        adjustment.itemType,
         adjustment.quantity,
         adjustment.type,
+        adjustment.reason,
         adjustedBy,
-        notes,
       );
       results.push(result);
     }
@@ -279,8 +369,14 @@ export class StockAdjustmentsService {
   ): Promise<{
     totalAdjustments: number;
     byType: Record<string, number>;
+    byItemType: Record<string, number>;
     topAdjustedMaterials: Array<{
       material: any;
+      adjustmentCount: number;
+      netChange: number;
+    }>;
+    topAdjustedProducts: Array<{
+      product: any;
       adjustmentCount: number;
       netChange: number;
     }>;
@@ -298,7 +394,7 @@ export class StockAdjustmentsService {
     const totalAdjustments =
       await this.stockAdjustmentModel.countDocuments(query);
 
-    // Get breakdown by type
+    // Get breakdown by adjustment type
     const typeBreakdown = await this.stockAdjustmentModel.aggregate([
       { $match: query },
       {
@@ -317,9 +413,28 @@ export class StockAdjustmentsService {
       {} as Record<string, number>,
     );
 
+    // Get breakdown by item type
+    const itemTypeBreakdown = await this.stockAdjustmentModel.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: '$itemType',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const byItemType = itemTypeBreakdown.reduce(
+      (acc, item) => {
+        acc[item._id] = item.count;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
     // Get top adjusted materials
     const topMaterials = await this.stockAdjustmentModel.aggregate([
-      { $match: query },
+      { $match: { ...query, itemType: 'material' } },
       {
         $group: {
           _id: '$material',
@@ -352,10 +467,47 @@ export class StockAdjustmentsService {
       },
     ]);
 
+    // Get top adjusted products
+    const topProducts = await this.stockAdjustmentModel.aggregate([
+      { $match: { ...query, itemType: 'product' } },
+      {
+        $group: {
+          _id: '$product',
+          adjustmentCount: { $sum: 1 },
+          netChange: { $sum: '$quantity' },
+        },
+      },
+      { $sort: { adjustmentCount: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product',
+        },
+      },
+      { $unwind: '$product' },
+      {
+        $project: {
+          _id: 0,
+          product: {
+            _id: '$product._id',
+            name: '$product.name',
+            sku: '$product.sku',
+          },
+          adjustmentCount: 1,
+          netChange: 1,
+        },
+      },
+    ]);
+
     return {
       totalAdjustments,
       byType,
+      byItemType,
       topAdjustedMaterials: topMaterials,
+      topAdjustedProducts: topProducts,
     };
   }
 }

@@ -115,7 +115,7 @@ export class AuthService {
     businessName?: string;
   }): Promise<UserDocument> {
     const { name, email, password, country, businessName } = registerDto;
-    const existingUser = await this.userModel.findOne({ email }).exec();
+    const existingUser = await this.userModel.findOne({ email });
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { MaterialsService } from './materials.service';
-import { MaterialsController } from './materials.controller';
+import { MaterialsService } from './services/materials.service';
+import { MaterialsController } from './controllers/materials.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Material, MaterialSchema } from './schemas/material.schema';
 

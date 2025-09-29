@@ -44,6 +44,9 @@ export class Product {
   @Prop({ type: [RecipeItemSchema], required: true })
   recipe: RecipeItem[];
 
+  @Prop({ default: 0, min: 0 })
+  averageUnitCost: number; // Rolling average cost of finished goods
+
   @Prop()
   imageUrl: string;
 
