@@ -32,6 +32,14 @@ export class MaterialsController {
   }> {
     return this.materialsService.getStatistics();
   }
+  @Get('total-counts')
+  async getCounts(): Promise<{
+    outOfStock: number;
+    lowStock: number;
+    totalMaterials: number;
+  }> {
+    return await this.materialsService.getCounts();
+  }
 
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<Material> {

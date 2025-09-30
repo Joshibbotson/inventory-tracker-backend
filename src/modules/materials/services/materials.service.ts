@@ -114,6 +114,29 @@ export class MaterialsService {
     };
   }
 
+  async getCounts(): Promise<{
+    outOfStock: number;
+    lowStock: number;
+    totalMaterials: number;
+  }> {
+    const outOfStockCount = this.materialModel.countDocuments({
+      currentStock: { $lte: 0 },
+    });
+    const lowStockCount = this.materialModel.countDocuments({
+      $expr: { $lt: ['$currentStock', '$minimumStock'] },
+    });
+    const totalMaterialsCount = this.materialModel.countDocuments();
+
+    const [outOfStockTotal, lowStockTotal, totalMaterialsTotal] =
+      await Promise.all([outOfStockCount, lowStockCount, totalMaterialsCount]);
+
+    return {
+      outOfStock: outOfStockTotal,
+      lowStock: lowStockTotal,
+      totalMaterials: totalMaterialsTotal,
+    };
+  }
+
   // Placeholder — you’ll likely want a separate StockAdjustment model here
   async getAdjustmentHistory(id: string) {
     return []; // implement with StockAdjustment schema
