@@ -63,12 +63,18 @@ export class ProductionController {
   async reverseBatch(
     @Param('id') id: string,
     @Body('reason') reason: string,
+    @Body('quantity') quantity: number,
     @GetUser() user: any,
   ) {
     if (!reason) {
       throw new BadRequestException('Reversal reason is required');
     }
 
-    return this.productionService.reverseProductionBatch(id, reason, user._id);
+    return this.productionService.reverseProductionBatch(
+      id,
+      reason,
+      quantity,
+      user._id,
+    );
   }
 }

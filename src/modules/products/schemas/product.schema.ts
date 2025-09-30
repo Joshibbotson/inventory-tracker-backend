@@ -13,6 +13,11 @@ export enum ProductStatus {
 export enum ProductCategory {
   SEASONAL = 'seasonal',
   REGULAR = 'regular',
+  HALLOWEEN = 'halloween',
+  CHRISTMAS = 'christmas',
+  JAR_CANDLES = 'jar_candles',
+  DIFFUSERS = 'diffusers',
+  WAX_MELT = 'wax_melt',
   LIMITED_EDITION = 'limited_edition',
   CUSTOM = 'custom',
 }

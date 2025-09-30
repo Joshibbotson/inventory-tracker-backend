@@ -44,6 +44,10 @@ export class ProductionBatch {
   notes: string;
 
   // Reversal fields
+
+  @Prop({ default: 0 })
+  reversedQuantity: number;
+
   @Prop({ default: false })
   isReversed: boolean;
 

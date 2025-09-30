@@ -165,9 +165,9 @@ export class ProductionService {
   async reverseProductionBatch(
     batchId: string,
     reason: string,
+    quantity: number,
     reversedBy: string,
   ): Promise<{ success: boolean; message: string }> {
-    // Find the production batch
     const batch = await this.batchModel
       .findById(batchId)
       .populate('product')
@@ -177,31 +177,33 @@ export class ProductionService {
       throw new NotFoundException('Production batch not found');
     }
 
-    // Check if already reversed
-    if (batch.isReversed) {
+    // Track how much has already been reversed
+    const alreadyReversedQty = batch.reversedQuantity || 0;
+    const remainingQty = batch.quantity - alreadyReversedQty;
+
+    if (quantity > remainingQty) {
       throw new BadRequestException(
-        'This production batch has already been reversed',
+        `Cannot reverse more than remaining quantity. Remaining: ${remainingQty}`,
       );
     }
 
-    // Get the product
+    // Get product
     const product = await this.productModel.findById(batch.product);
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
-    // Check if product has enough stock to reverse
-    if (product.currentStock < batch.quantity) {
+    // Check stock available for reversal
+    if (product.currentStock < quantity) {
       throw new BadRequestException(
-        `Cannot reverse production. Only ${product.currentStock} units available, but ${batch.quantity} units need to be reversed. Some may have been sold or adjusted.`,
+        `Cannot reverse production. Only ${product.currentStock} units available, but ${quantity} units need to be reversed.`,
       );
     }
 
-    // Start reversal process
     const reversalAdjustments: any[] = [];
 
     try {
-      // 1. Restore materials to stock
+      // 1. Restore materials proportionally
       for (const materialCost of batch.materialCosts) {
         const material = await this.materialModel.findById(
           materialCost.material,
@@ -212,33 +214,32 @@ export class ProductionService {
           );
         }
 
-        const previousStock = material.currentStock;
-        const newStock = previousStock + materialCost.quantity;
+        // Scale by ratio of partial reversal
+        const ratio = quantity / batch.quantity;
+        const restoreQty = materialCost.quantity * ratio;
 
-        // Update material stock (add back what was used)
+        const previousStock = material.currentStock;
+        const newStock = previousStock + restoreQty;
+
         material.currentStock = newStock;
 
-        // Recalculate rolling average (this is an approximation)
-        // In a perfect world, we'd track the exact cost history
-        // For now, we'll use the cost at production time
+        // Update average cost (approximate)
         const currentTotalValue = previousStock * material.averageCost;
-        const restoredValue =
-          materialCost.quantity * materialCost.unitCostAtTime;
+        const restoredValue = restoreQty * materialCost.unitCostAtTime;
         const newTotalValue = currentTotalValue + restoredValue;
         material.averageCost = newTotalValue / newStock;
 
         await material.save();
 
-        // Create reversal adjustment record
         const adjustment = await this.stockAdjustmentModel.create({
           material: material._id,
           itemType: 'material',
           adjustmentType: 'reversal',
-          quantity: materialCost.quantity, // Positive for restoration
+          quantity: restoreQty,
           unit: material.unit,
           previousStock,
           newStock,
-          reason: `Production reversal: ${reason}`,
+          reason: `Production partial reversal: ${reason}`,
           batchNumber: batch.batchNumber,
           adjustedBy: new Types.ObjectId(reversedBy),
         });
@@ -246,13 +247,12 @@ export class ProductionService {
         reversalAdjustments.push(adjustment._id);
       }
 
-      // 2. Remove finished goods from product stock
+      // 2. Remove finished goods (partial)
       const previousProductStock = product.currentStock;
-      const newProductStock = previousProductStock - batch.quantity;
+      const newProductStock = previousProductStock - quantity;
 
-      // Recalculate product average cost (remove this batch's contribution)
       const currentTotalValue = previousProductStock * product.averageUnitCost;
-      const removedValue = batch.quantity * batch.unitCost;
+      const removedValue = quantity * batch.unitCost;
       const newTotalValue = Math.max(0, currentTotalValue - removedValue);
 
       if (newProductStock > 0) {
@@ -264,36 +264,39 @@ export class ProductionService {
       product.currentStock = newProductStock;
       await product.save();
 
-      // Create product adjustment record
       const productAdjustment = await this.stockAdjustmentModel.create({
         product: product._id,
         itemType: 'product',
         adjustmentType: AdjustmentType.REVERSAL,
-        quantity: -batch.quantity,
+        quantity: -quantity,
         previousStock: previousProductStock,
         newStock: newProductStock,
-        reason: `Production reversal: ${reason}`,
+        reason: `Production partial reversal: ${reason}`,
         batchNumber: batch.batchNumber,
         adjustedBy: new Types.ObjectId(reversedBy),
       });
 
       reversalAdjustments.push(productAdjustment._id);
 
-      // 3. Mark batch as reversed
-      batch.isReversed = true;
-      batch.reversalReason = reason;
-      batch.reversedBy = new Types.ObjectId(reversedBy);
-      batch.reversedAt = new Date();
-      batch.reversalAdjustments = reversalAdjustments;
+      // 3. Update batch reversal progress
+      batch.reversedQuantity = alreadyReversedQty + quantity;
+      if (batch.reversedQuantity >= batch.quantity) {
+        batch.isReversed = true;
+        batch.reversalReason = reason;
+        batch.reversedBy = new Types.ObjectId(reversedBy);
+        batch.reversedAt = new Date();
+      }
+      batch.reversalAdjustments = [
+        ...(batch.reversalAdjustments || []),
+        ...reversalAdjustments,
+      ];
       await batch.save();
 
       return {
         success: true,
-        message: `Successfully reversed production batch ${batch.batchNumber}. Restored ${batch.materialCosts.length} materials and removed ${batch.quantity} finished products.`,
+        message: `Successfully reversed ${quantity} of ${batch.batchNumber}. Restored materials and removed ${quantity} finished products.`,
       };
     } catch (error) {
-      // If any error occurs during reversal, we should ideally roll back
-      // For now, throw the error up
       throw new BadRequestException(`Reversal failed: ${error.message}`);
     }
   }
@@ -318,13 +321,6 @@ export class ProductionService {
     const product = await this.productModel.findById(batch.product);
     if (!product) {
       return { canReverse: false, reason: 'Product not found' };
-    }
-
-    if (product.currentStock < batch.quantity) {
-      return {
-        canReverse: false,
-        reason: `Insufficient product stock. Need ${batch.quantity} but only ${product.currentStock} available`,
-      };
     }
 
     return { canReverse: true };
