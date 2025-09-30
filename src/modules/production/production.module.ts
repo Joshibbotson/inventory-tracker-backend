@@ -8,6 +8,10 @@ import {
 } from './schemas/production-batch.schema';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
 import { Material, MaterialSchema } from '../materials/schemas/material.schema';
+import {
+  StockAdjustment,
+  StockAdjustmentSchema,
+} from '../stock-adjustments/schemas/stock-adjustment.schema';
 
 @Module({
   imports: [
@@ -15,6 +19,7 @@ import { Material, MaterialSchema } from '../materials/schemas/material.schema';
       { name: ProductionBatch.name, schema: ProductionBatchSchema },
       { name: Product.name, schema: ProductSchema },
       { name: Material.name, schema: MaterialSchema },
+      { name: StockAdjustment.name, schema: StockAdjustmentSchema },
     ]),
   ],
   controllers: [ProductionController],

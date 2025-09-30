@@ -7,8 +7,8 @@ export enum AdjustmentType {
   PURCHASE = 'purchase',
   PRODUCTION = 'production',
   CORRECTION = 'correction',
+  REVERSAL = 'reversal',
   BREAKAGE = 'breakage',
-  RETURN = 'return',
   WASTE = 'waste',
 }
 

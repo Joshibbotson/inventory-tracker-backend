@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  BadRequestException,
+} from '@nestjs/common';
 import { ProductionService } from './production.service';
 import { GetUser } from 'src/core/decorators/user.decorator';
 import { User } from '../user/schemas/User.schema';
@@ -42,5 +51,24 @@ export class ProductionController {
   @Get('stats/:productId')
   async getProductionStats(@Param('productId') productId: string) {
     return this.productionService.getProductionStats(productId);
+  }
+
+  @Get('batch/:id/can-reverse')
+  async canReverseBatch(@Param('id') id: string) {
+    return this.productionService.canReverseBatch(id);
+  }
+
+  @Post('batch/:id/reverse')
+  @HttpCode(200)
+  async reverseBatch(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @GetUser() user: any,
+  ) {
+    if (!reason) {
+      throw new BadRequestException('Reversal reason is required');
+    }
+
+    return this.productionService.reverseProductionBatch(id, reason, user._id);
   }
 }

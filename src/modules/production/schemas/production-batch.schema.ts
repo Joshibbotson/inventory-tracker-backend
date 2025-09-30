@@ -1,5 +1,7 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+
+export type ProductionBatchDocument = HydratedDocument<ProductionBatch>;
 
 @Schema({ timestamps: true })
 export class ProductionBatch {
@@ -30,16 +32,32 @@ export class ProductionBatch {
   }>;
 
   @Prop({ required: true, min: 0 })
-  unitCost: number; // Cost per unit for this batch
+  unitCost: number;
 
   @Prop({ required: true, min: 0 })
-  totalCost: number; // Total cost for this batch
+  totalCost: number;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   producedBy: Types.ObjectId;
 
   @Prop()
   notes: string;
+
+  // Reversal fields
+  @Prop({ default: false })
+  isReversed: boolean;
+
+  @Prop()
+  reversalReason: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  reversedBy: Types.ObjectId;
+
+  @Prop()
+  reversedAt: Date;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'StockAdjustment' }] })
+  reversalAdjustments: Types.ObjectId[];
 }
 
 export const ProductionBatchSchema =

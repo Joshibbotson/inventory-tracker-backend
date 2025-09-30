@@ -11,6 +11,10 @@ export enum MaterialCategory {
   DYE = 'dye',
   CONTAINER = 'container',
   LABEL = 'label',
+  PAINT = 'paint',
+  CANDLE_BOXES = 'candle_boxes',
+  POST_AND_PACKAGING = 'post_and_packaging',
+  DIFFUSER_BOTTLE = 'diffuser_bottle',
   OTHER = 'other',
 }
 
