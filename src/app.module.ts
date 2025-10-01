@@ -19,7 +19,7 @@ import { CacheModule } from '@nestjs/cache-manager';
   imports: [
     CacheModule.register({
       ttl: 5000, // Cache expiration time in milliseconds
-      max: 10, // Maximum number of items in cache
+      max: 20, // Maximum number of items in cache
       isGlobal: true,
     }),
     ConfigModule.forRoot({
