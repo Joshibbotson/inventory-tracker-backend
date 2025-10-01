@@ -5,15 +5,14 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Product, ProductDocument } from './schemas/product.schema';
+import { Product, ProductDocument } from '../schemas/product.schema';
 import {
   Material,
   MaterialDocument,
-} from '../materials/schemas/material.schema';
-
-import { User } from '../user/schemas/User.schema';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+} from '../../materials/schemas/material.schema';
+import { User } from '../../user/schemas/User.schema';
+import { CreateProductDto } from '../dto/create-product.dto';
+import { UpdateProductDto } from '../dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {

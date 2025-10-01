@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ProductionService } from './production.service';
-import { ProductionController } from './production.controller';
+import { ProductionService } from './services/production.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
   ProductionBatch,
@@ -12,6 +11,7 @@ import {
   StockAdjustment,
   StockAdjustmentSchema,
 } from '../stock-adjustments/schemas/stock-adjustment.schema';
+import { ProductionController } from './controllers/production.controller';
 
 @Module({
   imports: [

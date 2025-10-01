@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Unit, UnitDocument, UnitType } from './schemas/unit.schema';
+import { Unit, UnitDocument, UnitType } from '../schemas/unit.schema';
 
 @Injectable()
 export class UnitsService {

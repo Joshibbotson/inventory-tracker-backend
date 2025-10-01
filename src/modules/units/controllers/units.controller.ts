@@ -8,18 +8,34 @@ import {
   Put,
   NotFoundException,
   BadRequestException,
+  UseGuards,
+  Inject,
 } from '@nestjs/common';
-import { UnitsService } from './units.service';
-import { Unit, UnitType } from './schemas/unit.schema';
 
+import { AuthGuard } from 'src/core/guards/Auth.guard';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { Unit, UnitType } from '../schemas/unit.schema';
+import { UnitsService } from '../services/units.service';
+
+@UseGuards(AuthGuard)
 @Controller('units')
 export class UnitsController {
-  constructor(private readonly unitsService: UnitsService) {}
+  private readonly CACHE_KEY = 'units';
+  constructor(
+    private readonly unitsService: UnitsService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   // Get all units
   @Get()
   async findAll(): Promise<Unit[]> {
-    return await this.unitsService.findAll();
+    const data = await this.cacheManager.get<Unit[]>(this.CACHE_KEY);
+    if (data) return data;
+
+    const newData = await this.unitsService.findAll();
+    await this.cacheManager.set(this.CACHE_KEY, newData, 10000);
+    return newData;
   }
 
   // Get a single unit by id

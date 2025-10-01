@@ -8,14 +8,19 @@ import {
   HttpCode,
   BadRequestException,
   Inject,
+  UseGuards,
 } from '@nestjs/common';
-import { ProductionService } from './production.service';
+
 import { GetUser } from 'src/core/decorators/user.decorator';
-import { User } from '../user/schemas/User.schema';
+
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { ProductionBatch } from './schemas/production-batch.schema';
+import { AuthGuard } from 'src/core/guards/Auth.guard';
+import { User } from 'src/modules/user/schemas/User.schema';
+import { ProductionBatch } from '../schemas/production-batch.schema';
+import { ProductionService } from '../services/production.service';
 
+@UseGuards(AuthGuard)
 @Controller('production')
 export class ProductionController {
   private readonly CACHE_KEY = 'production';

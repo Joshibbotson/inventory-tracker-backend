@@ -14,15 +14,17 @@ import {
   NotFoundException,
   Inject,
 } from '@nestjs/common';
-import { ProductsService } from './products.service';
-import { User } from '../user/schemas/User.schema';
+
 import { GetUser } from 'src/core/decorators/user.decorator';
 import { AuthGuard } from 'src/core/guards/Auth.guard';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { Product } from './schemas/product.schema';
+import { User } from 'src/modules/user/schemas/User.schema';
+import { CreateProductDto } from '../dto/create-product.dto';
+import { UpdateProductDto } from '../dto/update-product.dto';
+import { Product } from '../schemas/product.schema';
+import { ProductsService } from '../services/products.service';
 
 @UseGuards(AuthGuard)
 @Controller('products')

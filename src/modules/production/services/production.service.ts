@@ -8,13 +8,16 @@ import { Model, Types } from 'mongoose';
 import {
   Material,
   MaterialDocument,
-} from '../materials/schemas/material.schema';
-import { Product, ProductDocument } from '../products/schemas/product.schema';
-import { ProductionBatch } from './schemas/production-batch.schema';
+} from '../../materials/schemas/material.schema';
+import {
+  Product,
+  ProductDocument,
+} from '../../products/schemas/product.schema';
+import { ProductionBatch } from '../schemas/production-batch.schema';
 import {
   AdjustmentType,
   StockAdjustment,
-} from '../stock-adjustments/schemas/stock-adjustment.schema';
+} from '../../stock-adjustments/schemas/stock-adjustment.schema';
 
 @Injectable()
 export class ProductionService {

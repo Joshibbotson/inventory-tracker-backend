@@ -1,11 +1,8 @@
 import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
-import { InventoryModule } from './modules/inventory/inventory.module';
 import { MaterialsModule } from './modules/materials/materials.module';
 import { ProductsModule } from './modules/products/products.module';
 import { StockAdjustmentsModule } from './modules/stock-adjustments/stock-adjustments.module';
@@ -28,7 +25,6 @@ import { CacheModule } from '@nestjs/cache-manager';
     MongooseModule.forRoot(process.env.MONGODB_URI ?? ''),
     AuthModule,
     UserModule,
-    InventoryModule,
     MaterialsModule,
     MaterialOrderModule,
     ProductsModule,
@@ -36,8 +32,6 @@ import { CacheModule } from '@nestjs/cache-manager';
     UnitsModule,
     ProductionModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

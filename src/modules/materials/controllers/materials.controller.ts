@@ -10,11 +10,13 @@ import {
   NotFoundException,
   BadRequestException,
   Inject,
+  UseGuards,
 } from '@nestjs/common';
 import { MaterialsService } from '../services/materials.service';
 import { Material, MaterialCategory } from '../schemas/material.schema';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { AuthGuard } from 'src/core/guards/Auth.guard';
 
 export type MatertialStatistics = {
   totalMaterials: number;
@@ -24,6 +26,7 @@ export type MatertialStatistics = {
   categoryCounts: { [key: string]: number };
 };
 
+@UseGuards(AuthGuard)
 @Controller('materials')
 export class MaterialsController {
   CACHE_KEY = 'materials';
