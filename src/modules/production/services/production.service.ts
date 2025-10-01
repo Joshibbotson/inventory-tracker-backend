@@ -239,7 +239,7 @@ export class ProductionService {
           itemType: 'material',
           adjustmentType: 'reversal',
           quantity: restoreQty,
-          unit: material.unit,
+          unit: new Types.ObjectId(material.unit as unknown as string),
           previousStock,
           newStock,
           reason: `Production partial reversal: ${reason}`,

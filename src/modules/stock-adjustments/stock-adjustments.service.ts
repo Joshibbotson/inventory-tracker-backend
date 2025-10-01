@@ -158,7 +158,7 @@ export class StockAdjustmentsService {
       itemType: 'material',
       adjustmentType: AdjustmentType.PURCHASE,
       quantity: quantity, // Positive for addition
-      unit: material.unit,
+      unit: new Types.ObjectId(material.unit as unknown as string),
       adjustedBy: purchasedBy ? new Types.ObjectId(purchasedBy) : undefined,
       previousStock,
       newStock,

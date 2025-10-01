@@ -8,7 +8,7 @@ import {
   MaterialOrder,
   MaterialOrderDocument,
 } from '../schemas/material-order.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateMaterialDto } from '../dto/CreateMaterialOrder.dto';
 
 @Injectable()
@@ -47,6 +47,7 @@ export class MaterialOrderService {
     // Create order record
     const order = new this.orderModel({
       ...orderDto,
+      material: new Types.ObjectId(orderDto.material),
       unitCost,
       createdBy: userId,
     });

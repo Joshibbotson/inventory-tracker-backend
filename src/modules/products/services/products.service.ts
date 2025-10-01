@@ -93,6 +93,11 @@ export class ProductsService {
 
     const createdProduct = new this.productModel({
       ...createProductDto,
+      recipe: createProductDto.recipe?.map((recipe) => ({
+        ...recipe,
+        material: new Types.ObjectId(recipe.material),
+        unit: new Types.ObjectId(recipe.material),
+      })),
       createdBy: user._id,
     });
 
@@ -135,6 +140,11 @@ export class ProductsService {
         id,
         {
           ...updateProductDto,
+          recipe: updateProductDto.recipe?.map((recipe) => ({
+            ...recipe,
+            material: new Types.ObjectId(recipe.material),
+            unit: new Types.ObjectId(recipe.material),
+          })),
           updatedBy: user._id,
           updatedAt: new Date(),
         },
