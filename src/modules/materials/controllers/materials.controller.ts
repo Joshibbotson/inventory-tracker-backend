@@ -17,6 +17,7 @@ import { Material, MaterialCategory } from '../schemas/material.schema';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { AuthGuard } from 'src/core/guards/Auth.guard';
+import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 
 export type MatertialStatistics = {
   totalMaterials: number;
@@ -36,12 +37,16 @@ export class MaterialsController {
   ) {}
 
   @Get()
-  async findAll(): Promise<Material[]> {
+  async findAll(
+    @Query('page') page = 1,
+    @Query('pageSize') pageSize = 10,
+  ): Promise<PaginatedResponse<Material>> {
     const KEY = `${this.CACHE_KEY}-findAll`;
-    const materials = await this.cacheManager.get<Material[]>(KEY);
+    const materials =
+      await this.cacheManager.get<PaginatedResponse<Material>>(KEY);
     if (materials) return materials;
 
-    const newMaterials = await this.materialsService.findAll();
+    const newMaterials = await this.materialsService.findAll(page, pageSize);
     await this.cacheManager.set(KEY, newMaterials, 10000);
     return newMaterials;
   }

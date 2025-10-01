@@ -38,6 +38,8 @@ export class MaterialOrderController {
 
   @Get()
   async getOrders(
+    @Query('page') page = 1,
+    @Query('pageSize') pageSize = 10,
     @Query('materialId') materialId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
@@ -47,6 +49,8 @@ export class MaterialOrderController {
     if (orders) return orders;
 
     const newOrdersData = await this.materialOrderService.getOrders(
+      page,
+      pageSize,
       materialId,
       startDate ? new Date(startDate) : undefined,
       endDate ? new Date(endDate) : undefined,

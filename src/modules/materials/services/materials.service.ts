@@ -6,6 +6,7 @@ import {
   MaterialDocument,
   MaterialCategory,
 } from '../schemas/material.schema';
+import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 
 @Injectable()
 export class MaterialsService {
@@ -13,8 +14,25 @@ export class MaterialsService {
     @InjectModel(Material.name) private materialModel: Model<MaterialDocument>,
   ) {}
 
-  async findAll(): Promise<Material[]> {
-    return this.materialModel.find().populate('unit').exec();
+  async findAll(page = 1, pageSize = 10): Promise<PaginatedResponse<Material>> {
+    const skip = (page - 1) * pageSize;
+
+    const [data, total] = await Promise.all([
+      this.materialModel
+        .find()
+        .populate('unit')
+        .skip(skip)
+        .limit(pageSize)
+        .exec(),
+      this.materialModel.countDocuments().exec(),
+    ]);
+
+    return {
+      data,
+      page,
+      pageSize,
+      total,
+    };
   }
 
   async findOne(id: string): Promise<MaterialDocument | null> {

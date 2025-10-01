@@ -10,6 +10,7 @@ import {
 } from '../schemas/material-order.schema';
 import { Model, Types } from 'mongoose';
 import { CreateMaterialDto } from '../dto/CreateMaterialOrder.dto';
+import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 
 @Injectable()
 export class MaterialOrderService {
@@ -63,11 +64,14 @@ export class MaterialOrderService {
   }
 
   async getOrders(
+    page = 1,
+    pageSize = 10,
     materialId?: string,
     startDate?: Date,
     endDate?: Date,
-  ): Promise<MaterialOrderDocument[]> {
+  ): Promise<PaginatedResponse<MaterialOrderDocument>> {
     const query: any = {};
+    const skip = (page - 1) * pageSize;
 
     if (materialId) {
       query.material = materialId;
@@ -77,11 +81,23 @@ export class MaterialOrderService {
       query.createdAt = { $gte: startDate, $lte: endDate };
     }
 
-    return this.orderModel
-      .find(query)
-      .populate('material')
-      .sort('-createdAt')
-      .exec();
+    const [data, total] = await Promise.all([
+      this.orderModel
+        .find(query)
+        .populate('material')
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(pageSize)
+        .exec(),
+      this.orderModel.countDocuments(query),
+    ]);
+
+    return {
+      data,
+      page,
+      pageSize,
+      total,
+    };
   }
 
   async deleteOrder(orderId: string): Promise<void> {
