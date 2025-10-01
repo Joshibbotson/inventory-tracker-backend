@@ -9,29 +9,50 @@ import {
   Query,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { MaterialsService } from '../services/materials.service';
 import { Material, MaterialCategory } from '../schemas/material.schema';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+
+export type MatertialStatistics = {
+  totalMaterials: number;
+  totalValue: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  categoryCounts: { [key: string]: number };
+};
 
 @Controller('materials')
 export class MaterialsController {
-  constructor(private readonly materialsService: MaterialsService) {}
+  CACHE_KEY = 'materials';
+  constructor(
+    private readonly materialsService: MaterialsService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @Get()
   async findAll(): Promise<Material[]> {
-    return this.materialsService.findAll();
+    const KEY = `${this.CACHE_KEY}-findAll`;
+    const materials = await this.cacheManager.get<Material[]>(KEY);
+    if (materials) return materials;
+
+    const newMaterials = await this.materialsService.findAll();
+    await this.cacheManager.set(KEY, newMaterials, 10000);
+    return newMaterials;
   }
 
   @Get('statistics')
-  async getStatistics(): Promise<{
-    totalMaterials: number;
-    totalValue: number;
-    lowStockCount: number;
-    outOfStockCount: number;
-    categoryCounts: { [key: string]: number };
-  }> {
-    return this.materialsService.getStatistics();
+  async getStatistics(): Promise<MatertialStatistics> {
+    const KEY = `${this.CACHE_KEY}-statistics`;
+    const statistics = await this.cacheManager.get<MatertialStatistics>(KEY);
+    if (statistics) return statistics;
+    const newStatistics = await this.materialsService.getStatistics();
+    await this.cacheManager.set(KEY, newStatistics, 10000);
+    return newStatistics;
   }
+
   @Get('total-counts')
   async getCounts(): Promise<{
     outOfStock: number;

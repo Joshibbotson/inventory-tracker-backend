@@ -12,19 +12,26 @@ import {
   HttpCode,
   BadRequestException,
   NotFoundException,
+  Inject,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
-
 import { User } from '../user/schemas/User.schema';
 import { GetUser } from 'src/core/decorators/user.decorator';
 import { AuthGuard } from 'src/core/guards/Auth.guard';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { Product } from './schemas/product.schema';
 
 @UseGuards(AuthGuard)
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  CACHE_KEY = 'products';
+  constructor(
+    private readonly productsService: ProductsService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @Get()
   async findAll(
@@ -32,12 +39,28 @@ export class ProductsController {
     @Query('status') status?: string,
   ) {
     if (category) {
-      return this.productsService.findByCategory(category);
+      const KEY = `${this.CACHE_KEY}-${category}`;
+      const data = await this.cacheManager.get<Product[]>(KEY);
+      if (data) return data;
+      const newData = await this.productsService.findByCategory(category);
+      await this.cacheManager.set(KEY, newData, 10000);
+      return newData;
     }
     if (status) {
-      return this.productsService.findByStatus(status);
+      const KEY = `${this.CACHE_KEY}-${status}`;
+      const data = await this.cacheManager.get<Product[]>(KEY);
+      if (data) return data;
+      const newData = this.productsService.findByStatus(status);
+      await this.cacheManager.set(KEY, newData, 10000);
+      return newData;
     }
-    return this.productsService.findAll();
+
+    const KEY = `${this.CACHE_KEY}`;
+    const data = await this.cacheManager.get<Product[]>(KEY);
+    if (data) return data;
+    const newData = this.productsService.findAll();
+    await this.cacheManager.set(KEY, newData, 10000);
+    return newData;
   }
 
   @Get('active')

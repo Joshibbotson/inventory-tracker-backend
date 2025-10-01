@@ -7,14 +7,22 @@ import {
   Query,
   HttpCode,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { ProductionService } from './production.service';
 import { GetUser } from 'src/core/decorators/user.decorator';
 import { User } from '../user/schemas/User.schema';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { ProductionBatch } from './schemas/production-batch.schema';
 
 @Controller('production')
 export class ProductionController {
-  constructor(private readonly productionService: ProductionService) {}
+  private readonly CACHE_KEY = 'production';
+  constructor(
+    private readonly productionService: ProductionService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @Post('batch')
   async createProductionBatch(
@@ -40,12 +48,22 @@ export class ProductionController {
     @Query('productId') productId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-  ) {
-    return this.productionService.getProductionHistory(
-      productId,
-      startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined,
-    );
+  ): Promise<ProductionBatch[]> {
+    const CACHE_KEY = `${this.CACHE_KEY}-${productId}-${startDate}-${endDate}`;
+
+    const productionHistory =
+      await this.cacheManager.get<ProductionBatch[]>(CACHE_KEY);
+    if (productionHistory) return productionHistory;
+
+    const newProductionHistory =
+      await this.productionService.getProductionHistory(
+        productId,
+        startDate ? new Date(startDate) : undefined,
+        endDate ? new Date(endDate) : undefined,
+      );
+
+    await this.cacheManager.set(CACHE_KEY, newProductionHistory, 10000);
+    return newProductionHistory;
   }
 
   @Get('stats/:productId')

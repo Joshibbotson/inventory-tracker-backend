@@ -13,9 +13,15 @@ import { UnitsModule } from './modules/units/units.module';
 import { JwtAuthMiddleware } from './core/middleware/jwt-auth.middleware';
 import { ProductionModule } from './modules/production/production.module';
 import { MaterialOrderModule } from './modules/material-order/material-order.module';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
+    CacheModule.register({
+      ttl: 5000, // Cache expiration time in milliseconds
+      max: 10, // Maximum number of items in cache
+      isGlobal: true,
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
