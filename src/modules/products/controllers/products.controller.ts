@@ -23,7 +23,6 @@ import { Cache } from 'cache-manager';
 import { User } from 'src/modules/user/schemas/User.schema';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
-import { Product } from '../schemas/product.schema';
 import { ProductsService } from '../services/products.service';
 
 @UseGuards(AuthGuard)
@@ -41,27 +40,27 @@ export class ProductsController {
     @Query('status') status?: string,
   ) {
     if (category) {
-      const KEY = `${this.CACHE_KEY}-${category}`;
-      const data = await this.cacheManager.get<Product[]>(KEY);
-      if (data) return data;
+      // const KEY = `${this.CACHE_KEY}-${category}`;
+      // const data = await this.cacheManager.get<Product[]>(KEY);
+      // if (data) return data;
       const newData = await this.productsService.findByCategory(category);
-      await this.cacheManager.set(KEY, newData, 10000);
+      // await this.cacheManager.set(KEY, newData, 10000);
       return newData;
     }
     if (status) {
-      const KEY = `${this.CACHE_KEY}-${status}`;
-      const data = await this.cacheManager.get<Product[]>(KEY);
-      if (data) return data;
+      // const KEY = `${this.CACHE_KEY}-${status}`;
+      // const data = await this.cacheManager.get<Product[]>(KEY);
+      // if (data) return data;
       const newData = this.productsService.findByStatus(status);
-      await this.cacheManager.set(KEY, newData, 10000);
+      // await this.cacheManager.set(KEY, newData, 10000);
       return newData;
     }
 
-    const KEY = `${this.CACHE_KEY}`;
-    const data = await this.cacheManager.get<Product[]>(KEY);
-    if (data) return data;
+    // const KEY = `${this.CACHE_KEY}`;
+    // const data = await this.cacheManager.get<Product[]>(KEY);
+    // if (data) return data;
     const newData = this.productsService.findAll();
-    await this.cacheManager.set(KEY, newData, 10000);
+    // await this.cacheManager.set(KEY, newData, 10000);
     return newData;
   }
 

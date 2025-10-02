@@ -44,9 +44,9 @@ export class MaterialOrderController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    const KEY = `${this.CACHE_KEY}-${materialId}-${startDate}-${endDate}`;
-    const orders = await this.cacheManager.get<MaterialOrderDocument[]>(KEY);
-    if (orders) return orders;
+    // const KEY = `${this.CACHE_KEY}-${materialId}-${startDate}-${endDate}`;
+    // const orders = await this.cacheManager.get<MaterialOrderDocument[]>(KEY);
+    // if (orders) return orders;
 
     const newOrdersData = await this.materialOrderService.getOrders(
       page,
@@ -55,7 +55,7 @@ export class MaterialOrderController {
       startDate ? new Date(startDate) : undefined,
       endDate ? new Date(endDate) : undefined,
     );
-    await this.cacheManager.set(KEY, newOrdersData, 10000);
+    // await this.cacheManager.set(KEY, newOrdersData, 10000);
     return newOrdersData;
   }
 

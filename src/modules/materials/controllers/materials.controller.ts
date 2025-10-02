@@ -41,23 +41,23 @@ export class MaterialsController {
     @Query('page') page = 1,
     @Query('pageSize') pageSize = 10,
   ): Promise<PaginatedResponse<Material>> {
-    const KEY = `${this.CACHE_KEY}-findAll`;
-    const materials =
-      await this.cacheManager.get<PaginatedResponse<Material>>(KEY);
-    if (materials) return materials;
+    // const KEY = `${this.CACHE_KEY}-findAll`;
+    // const materials =
+    //   await this.cacheManager.get<PaginatedResponse<Material>>(KEY);
+    // if (materials) return materials;
 
     const newMaterials = await this.materialsService.findAll(page, pageSize);
-    await this.cacheManager.set(KEY, newMaterials, 10000);
+    // await this.cacheManager.set(KEY, newMaterials, 10000);
     return newMaterials;
   }
 
   @Get('statistics')
   async getStatistics(): Promise<MatertialStatistics> {
-    const KEY = `${this.CACHE_KEY}-statistics`;
-    const statistics = await this.cacheManager.get<MatertialStatistics>(KEY);
-    if (statistics) return statistics;
+    // const KEY = `${this.CACHE_KEY}-statistics`;
+    // const statistics = await this.cacheManager.get<MatertialStatistics>(KEY);
+    // if (statistics) return statistics;
     const newStatistics = await this.materialsService.getStatistics();
-    await this.cacheManager.set(KEY, newStatistics, 10000);
+    // await this.cacheManager.set(KEY, newStatistics, 10000);
     return newStatistics;
   }
 
@@ -69,6 +69,17 @@ export class MaterialsController {
   }> {
     return await this.materialsService.getCounts();
   }
+  @Get('search')
+  async search(@Query('q') query: string): Promise<Material[]> {
+    return this.materialsService.search(query);
+  }
+
+  @Post()
+  async create(
+    @Body() createMaterialDto: Partial<Omit<Material, 'currentStock'>>,
+  ): Promise<Material> {
+    return this.materialsService.create(createMaterialDto);
+  }
 
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<Material> {
@@ -77,13 +88,6 @@ export class MaterialsController {
       throw new NotFoundException(`Material with ID "${id}" not found`);
     }
     return material;
-  }
-
-  @Post()
-  async create(
-    @Body() createMaterialDto: Partial<Omit<Material, 'currentStock'>>,
-  ): Promise<Material> {
-    return this.materialsService.create(createMaterialDto);
   }
 
   @Put(':id')
@@ -129,10 +133,5 @@ export class MaterialsController {
   @Get(':id/adjustments')
   async getAdjustmentHistory(@Param('id') id: string) {
     return this.materialsService.getAdjustmentHistory(id);
-  }
-
-  @Get('search')
-  async search(@Query('q') query: string): Promise<Material[]> {
-    return this.materialsService.search(query);
   }
 }

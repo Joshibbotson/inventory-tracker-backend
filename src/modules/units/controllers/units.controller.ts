@@ -30,11 +30,11 @@ export class UnitsController {
   // Get all units
   @Get()
   async findAll(): Promise<Unit[]> {
-    const data = await this.cacheManager.get<Unit[]>(this.CACHE_KEY);
-    if (data) return data;
+    // const data = await this.cacheManager.get<Unit[]>(this.CACHE_KEY);
+    // if (data) return data;
 
     const newData = await this.unitsService.findAll();
-    await this.cacheManager.set(this.CACHE_KEY, newData, 10000);
+    // await this.cacheManager.set(this.CACHE_KEY, newData, 10000);
     return newData;
   }
 

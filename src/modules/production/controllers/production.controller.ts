@@ -54,11 +54,11 @@ export class ProductionController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<ProductionBatch[]> {
-    const CACHE_KEY = `${this.CACHE_KEY}-${productId}-${startDate}-${endDate}`;
+    // const CACHE_KEY = `${this.CACHE_KEY}-${productId}-${startDate}-${endDate}`;
 
-    const productionHistory =
-      await this.cacheManager.get<ProductionBatch[]>(CACHE_KEY);
-    if (productionHistory) return productionHistory;
+    // const productionHistory =
+    //   await this.cacheManager.get<ProductionBatch[]>(CACHE_KEY);
+    // if (productionHistory) return productionHistory;
 
     const newProductionHistory =
       await this.productionService.getProductionHistory(
@@ -67,7 +67,7 @@ export class ProductionController {
         endDate ? new Date(endDate) : undefined,
       );
 
-    await this.cacheManager.set(CACHE_KEY, newProductionHistory, 10000);
+    // await this.cacheManager.set(CACHE_KEY, newProductionHistory, 10000);
     return newProductionHistory;
   }
 

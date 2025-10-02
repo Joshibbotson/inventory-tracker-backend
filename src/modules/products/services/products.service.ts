@@ -96,7 +96,7 @@ export class ProductsService {
       recipe: createProductDto.recipe?.map((recipe) => ({
         ...recipe,
         material: new Types.ObjectId(recipe.material),
-        unit: new Types.ObjectId(recipe.material),
+        unit: new Types.ObjectId(recipe.unit),
       })),
       createdBy: user._id,
     });
