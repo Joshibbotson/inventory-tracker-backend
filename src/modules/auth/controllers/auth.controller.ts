@@ -42,34 +42,34 @@ export class AuthController {
     }
   }
 
-  @Throttle({
-    default: {
-      limit: 3, // 3 attempts
-      ttl: 60, // per 60 seconds
-      blockDuration: 300, // Optional: block for 5 minutes
-    },
-  })
-  @Post('register')
-  async register(
-    @Body()
-    registerDto: {
-      name: string;
-      email: string;
-      password: string;
-      country: string;
-      businessName?: string;
-    },
-    @Res() res: Response,
-  ) {
-    try {
-      const result = await this.authService.handleRegister(registerDto);
-      return res.status(HttpStatus.CREATED).json(result);
-    } catch (error) {
-      return res
-        .status(error.status || HttpStatus.BAD_REQUEST)
-        .json({ message: error.message });
-    }
-  }
+  // @Throttle({
+  //   default: {
+  //     limit: 3, // 3 attempts
+  //     ttl: 60, // per 60 seconds
+  //     blockDuration: 300, // Optional: block for 5 minutes
+  //   },
+  // })
+  // @Post('register')
+  // async register(
+  //   @Body()
+  //   registerDto: {
+  //     name: string;
+  //     email: string;
+  //     password: string;
+  //     country: string;
+  //     businessName?: string;
+  //   },
+  //   @Res() res: Response,
+  // ) {
+  //   try {
+  //     const result = await this.authService.handleRegister(registerDto);
+  //     return res.status(HttpStatus.CREATED).json(result);
+  //   } catch (error) {
+  //     return res
+  //       .status(error.status || HttpStatus.BAD_REQUEST)
+  //       .json({ message: error.message });
+  //   }
+  // }
 
   @Get('verify-email')
   async verifyEmail(@Query('token') token: string) {

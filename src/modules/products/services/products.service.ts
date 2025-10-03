@@ -13,6 +13,7 @@ import {
 import { User } from '../../user/schemas/User.schema';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
+import * as fs from 'fs';
 
 @Injectable()
 export class ProductsService {
@@ -69,10 +70,32 @@ export class ProductsService {
       .exec();
   }
 
+  async search(query: string): Promise<Product[]> {
+    return this.productModel
+      .find({
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { sku: { $regex: query, $options: 'i' } },
+          { description: { $regex: query, $options: 'i' } },
+        ],
+      })
+      .populate('recipe.material')
+      .populate('recipe.unit')
+      .exec();
+  }
+
   async create(
     createProductDto: CreateProductDto,
     user: User,
+    file?: Express.Multer.File,
   ): Promise<Product> {
+    let imagePath: string | null = null;
+
+    if (file) {
+      // Store relative path or full URL
+      imagePath = `/uploads/products/${file.filename}`;
+    }
+
     // Check if SKU already exists
     const existingProduct = await this.productModel.findOne({
       sku: createProductDto.sku,
@@ -98,6 +121,7 @@ export class ProductsService {
         material: new Types.ObjectId(recipe.material),
         unit: new Types.ObjectId(recipe.unit),
       })),
+      imageUrl: imagePath,
       createdBy: user._id,
     });
 
@@ -109,6 +133,7 @@ export class ProductsService {
     id: string,
     updateProductDto: UpdateProductDto,
     user: User,
+    file?: Express.Multer.File,
   ): Promise<Product | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;
@@ -134,6 +159,25 @@ export class ProductsService {
         }
       }
     }
+    console.log('file:', file);
+    // Handle image upload
+    let imageUrl = updateProductDto.imageUrl;
+    if (file) {
+      imageUrl = `/uploads/products/${file.filename}`;
+
+      // Optional: Delete old image file if it exists
+      const existingProduct = await this.productModel.findById(id);
+      if (existingProduct?.imageUrl) {
+        const oldPath = `.${existingProduct.imageUrl}`;
+        if (fs.existsSync(oldPath)) {
+          try {
+            fs.unlinkSync(oldPath);
+          } catch (error) {
+            console.error('Error deleting old image:', error);
+          }
+        }
+      }
+    }
 
     const updated = await this.productModel
       .findByIdAndUpdate(
@@ -143,8 +187,9 @@ export class ProductsService {
           recipe: updateProductDto.recipe?.map((recipe) => ({
             ...recipe,
             material: new Types.ObjectId(recipe.material),
-            unit: new Types.ObjectId(recipe.material),
+            unit: new Types.ObjectId(recipe.unit),
           })),
+          ...(imageUrl && { imageUrl }),
           updatedBy: user._id,
           updatedAt: new Date(),
         },

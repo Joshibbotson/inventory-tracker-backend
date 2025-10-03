@@ -7,7 +7,6 @@ import {
   Param,
   Query,
   Inject,
-  UseGuards,
 } from '@nestjs/common';
 import { MaterialOrderService } from '../services/material-order.service';
 import { GetUser } from 'src/core/decorators/user.decorator';
@@ -15,10 +14,9 @@ import { User } from '../../user/schemas/User.schema';
 import { CreateMaterialDto } from '../dto/CreateMaterialOrder.dto';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { MaterialOrderDocument } from '../schemas/material-order.schema';
-import { AuthGuard } from 'src/core/guards/Auth.guard';
+import { RequireVerified } from 'src/core/decorators/require-verified.decorator';
 
-@UseGuards(AuthGuard)
+@RequireVerified()
 @Controller('material-orders')
 export class MaterialOrderController {
   CACHE_KEY = `material-orders`;

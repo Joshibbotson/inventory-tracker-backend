@@ -10,14 +10,14 @@ import {
   NotFoundException,
   BadRequestException,
   Inject,
-  UseGuards,
 } from '@nestjs/common';
 import { MaterialsService } from '../services/materials.service';
 import { Material, MaterialCategory } from '../schemas/material.schema';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { AuthGuard } from 'src/core/guards/Auth.guard';
 import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
+import { StockLevel } from '../enums/StockLevel.enum';
+import { RequireVerified } from 'src/core/decorators/require-verified.decorator';
 
 export type MatertialStatistics = {
   totalMaterials: number;
@@ -27,7 +27,7 @@ export type MatertialStatistics = {
   categoryCounts: { [key: string]: number };
 };
 
-@UseGuards(AuthGuard)
+@RequireVerified()
 @Controller('materials')
 export class MaterialsController {
   CACHE_KEY = 'materials';
@@ -36,17 +36,28 @@ export class MaterialsController {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  @Get()
+  @Post('find-all')
   async findAll(
     @Query('page') page = 1,
     @Query('pageSize') pageSize = 10,
+    @Query('query') query: string,
+    @Body()
+    body?: {
+      searchTerm?: string;
+      category?: MaterialCategory;
+      stockLevel?: StockLevel;
+    },
   ): Promise<PaginatedResponse<Material>> {
     // const KEY = `${this.CACHE_KEY}-findAll`;
     // const materials =
     //   await this.cacheManager.get<PaginatedResponse<Material>>(KEY);
     // if (materials) return materials;
 
-    const newMaterials = await this.materialsService.findAll(page, pageSize);
+    const newMaterials = await this.materialsService.findAll(
+      page,
+      pageSize,
+      body,
+    );
     // await this.cacheManager.set(KEY, newMaterials, 10000);
     return newMaterials;
   }
@@ -69,6 +80,7 @@ export class MaterialsController {
   }> {
     return await this.materialsService.getCounts();
   }
+
   @Get('search')
   async search(@Query('q') query: string): Promise<Material[]> {
     return this.materialsService.search(query);

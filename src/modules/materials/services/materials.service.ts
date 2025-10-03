@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import {
   Material,
   MaterialDocument,
   MaterialCategory,
 } from '../schemas/material.schema';
 import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
+import { StockLevel } from '../enums/StockLevel.enum';
 
 @Injectable()
 export class MaterialsService {
@@ -14,12 +15,58 @@ export class MaterialsService {
     @InjectModel(Material.name) private materialModel: Model<MaterialDocument>,
   ) {}
 
-  async findAll(page = 1, pageSize = 10): Promise<PaginatedResponse<Material>> {
+  async findAll(
+    page = 1,
+    pageSize = 10,
+    filters?: {
+      searchTerm?: string;
+      category?: MaterialCategory;
+      stockLevel?: StockLevel;
+    },
+  ): Promise<PaginatedResponse<Material>> {
+    console.log('filters:', filters);
     const skip = (page - 1) * pageSize;
+
+    let query: FilterQuery<Material> = {};
+
+    if (filters?.searchTerm) {
+      query = {
+        $or: [
+          { name: { $regex: filters.searchTerm, $options: 'i' } },
+          { sku: { $regex: filters.searchTerm, $options: 'i' } },
+          { supplier: { $regex: filters.searchTerm, $options: 'i' } },
+          { category: { $regex: filters.searchTerm, $options: 'i' } },
+        ],
+      };
+    }
+
+    if (filters?.category) {
+      query.category = filters.category;
+    }
+    if (filters?.stockLevel) {
+      switch (filters.stockLevel) {
+        case StockLevel.LOW_STOCK:
+          query.currentStock = { $lte: 'material.minimumStock' };
+      }
+    }
+
+    if (filters?.stockLevel) {
+      switch (filters.stockLevel) {
+        case StockLevel.LOW_STOCK:
+          query.$expr = { $lte: ['$currentStock', '$minimumStock'] };
+          break;
+        case StockLevel.OUT_OF_STOCK:
+          query.currentStock = { $lte: 0 };
+          break;
+        case StockLevel.IN_STOCK:
+          query.$expr = { $gt: ['$currentStock', '$minimumStock'] };
+          break;
+      }
+    }
 
     const [data, total] = await Promise.all([
       this.materialModel
-        .find()
+        .find(query)
         .populate('unit')
         .skip(skip)
         .limit(pageSize)
