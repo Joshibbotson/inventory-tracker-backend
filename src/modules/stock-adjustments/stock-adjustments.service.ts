@@ -124,54 +124,6 @@ export class StockAdjustmentsService {
   }
 
   /**
-   * Handles stock increase for material orders/purchases.
-   * Updates rolling average cost.
-   */
-  async handleMaterialPurchase(
-    materialId: string,
-    quantity: number,
-    totalCost: number,
-    purchasedBy?: string,
-    orderNumber?: string,
-    notes?: string,
-  ): Promise<StockAdjustment> {
-    const material = await this.materialModel.findById(materialId);
-
-    if (!material) {
-      throw new NotFoundException('Material not found');
-    }
-
-    const previousStock = material.currentStock;
-    const newStock = previousStock + quantity;
-    const unitCost = totalCost / quantity;
-
-    // Update rolling average cost
-    const oldTotalValue = previousStock * material.averageCost;
-    const newTotalValue = oldTotalValue + totalCost;
-    material.averageCost = newTotalValue / newStock;
-    material.currentStock = newStock;
-    await material.save();
-
-    // Create adjustment record
-    const adjustment = await this.stockAdjustmentModel.create({
-      material: material._id,
-      itemType: 'material',
-      adjustmentType: AdjustmentType.PURCHASE,
-      quantity: quantity, // Positive for addition
-      unit: new Types.ObjectId(material.unit as unknown as string),
-      adjustedBy: purchasedBy ? new Types.ObjectId(purchasedBy) : undefined,
-      previousStock,
-      newStock,
-      unitCost,
-      totalCost,
-      orderNumber,
-      reason: notes || `Material purchase - Order: ${orderNumber}`,
-    });
-
-    return adjustment;
-  }
-
-  /**
    * Handles finished product stock increase after production.
    */
   async handleProductionIncrease(

@@ -205,8 +205,21 @@ export class ProductsService {
       return false;
     }
 
-    const result = await this.productModel.deleteOne({ _id: id });
-    return result.deletedCount > 0;
+    const deletedProduct = await this.productModel.findOneAndDelete({
+      _id: id,
+    });
+    if (deletedProduct?.imageUrl) {
+      const oldPath = `.${deletedProduct.imageUrl}`;
+      if (fs.existsSync(oldPath)) {
+        try {
+          fs.unlinkSync(oldPath);
+        } catch (error) {
+          console.error('Error deleting old image:', error);
+        }
+      }
+    }
+
+    return !!deletedProduct;
   }
 
   async calculateProductCost(

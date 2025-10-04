@@ -27,27 +27,19 @@ export class MaterialsService {
     console.log('filters:', filters);
     const skip = (page - 1) * pageSize;
 
-    let query: FilterQuery<Material> = {};
+    const query: FilterQuery<Material> = {};
 
     if (filters?.searchTerm) {
-      query = {
-        $or: [
-          { name: { $regex: filters.searchTerm, $options: 'i' } },
-          { sku: { $regex: filters.searchTerm, $options: 'i' } },
-          { supplier: { $regex: filters.searchTerm, $options: 'i' } },
-          { category: { $regex: filters.searchTerm, $options: 'i' } },
-        ],
-      };
+      query.$or = [
+        { name: { $regex: filters.searchTerm, $options: 'i' } },
+        { sku: { $regex: filters.searchTerm, $options: 'i' } },
+        { supplier: { $regex: filters.searchTerm, $options: 'i' } },
+        { category: { $regex: filters.searchTerm, $options: 'i' } },
+      ];
     }
 
     if (filters?.category) {
       query.category = filters.category;
-    }
-    if (filters?.stockLevel) {
-      switch (filters.stockLevel) {
-        case StockLevel.LOW_STOCK:
-          query.currentStock = { $lte: 'material.minimumStock' };
-      }
     }
 
     if (filters?.stockLevel) {
@@ -71,7 +63,7 @@ export class MaterialsService {
         .skip(skip)
         .limit(pageSize)
         .exec(),
-      this.materialModel.countDocuments().exec(),
+      this.materialModel.countDocuments(query).exec(), // ✅ apply same filters
     ]);
 
     return {

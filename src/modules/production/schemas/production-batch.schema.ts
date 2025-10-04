@@ -62,6 +62,26 @@ export class ProductionBatch {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'StockAdjustment' }] })
   reversalAdjustments: Types.ObjectId[];
+
+  // waste fields
+
+  @Prop({ default: 0 })
+  wastedQuantity: number;
+
+  @Prop({ default: false })
+  isWasted: boolean;
+
+  @Prop()
+  wasteReason: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  wasteBy: Types.ObjectId;
+
+  @Prop()
+  wasteAt: Date;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'StockAdjustment' }] })
+  wasteAdjustments: Types.ObjectId[];
 }
 
 export const ProductionBatchSchema =

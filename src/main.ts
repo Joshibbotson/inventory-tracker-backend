@@ -4,8 +4,11 @@ import { corsOptionsDelegate } from './core/utils/corsConfig';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
+import mongoose from 'mongoose';
 
 async function bootstrap() {
+  mongoose.set('transactionAsyncLocalStorage', true);
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {

@@ -57,7 +57,7 @@ export class MaterialOrderService {
   }
 
   async getOrderById(_id: string): Promise<MaterialOrder> {
-    const order = await this.orderModel.findById(_id);
+    const order = await this.orderModel.findById(_id).populate('material');
 
     if (!order) throw new BadRequestException('Order does not exist');
     return order;

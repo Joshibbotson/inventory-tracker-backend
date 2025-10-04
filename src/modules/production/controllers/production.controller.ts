@@ -53,12 +53,6 @@ export class ProductionController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<ProductionBatch[]> {
-    // const CACHE_KEY = `${this.CACHE_KEY}-${productId}-${startDate}-${endDate}`;
-
-    // const productionHistory =
-    //   await this.cacheManager.get<ProductionBatch[]>(CACHE_KEY);
-    // if (productionHistory) return productionHistory;
-
     const newProductionHistory =
       await this.productionService.getProductionHistory(
         productId,
@@ -66,7 +60,6 @@ export class ProductionController {
         endDate ? new Date(endDate) : undefined,
       );
 
-    // await this.cacheManager.set(CACHE_KEY, newProductionHistory, 10000);
     return newProductionHistory;
   }
 
@@ -93,6 +86,26 @@ export class ProductionController {
     }
 
     return this.productionService.reverseProductionBatch(
+      id,
+      reason,
+      quantity,
+      user._id,
+    );
+  }
+
+  @Post('batch/:id/waste')
+  @HttpCode(200)
+  async wasteBatch(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Body('quantity') quantity: number,
+    @GetUser() user: any,
+  ) {
+    if (!reason) {
+      throw new BadRequestException('Waste reason is required');
+    }
+
+    return this.productionService.wasteProductionBatch(
       id,
       reason,
       quantity,

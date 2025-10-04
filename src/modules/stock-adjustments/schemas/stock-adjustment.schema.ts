@@ -4,7 +4,6 @@ import { HydratedDocument, Types } from 'mongoose';
 export type StockAdjustmentDocument = HydratedDocument<StockAdjustment>;
 
 export enum AdjustmentType {
-  PURCHASE = 'purchase',
   PRODUCTION = 'production',
   CORRECTION = 'correction',
   REVERSAL = 'reversal',
