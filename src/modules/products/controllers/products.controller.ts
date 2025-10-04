@@ -28,6 +28,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import * as fs from 'fs';
 import { RequireVerified } from 'src/core/decorators/require-verified.decorator';
+import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 
 @RequireVerified()
 @Controller('products')
@@ -38,34 +39,20 @@ export class ProductsController {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  @Get()
+  @Post('find-all')
   async findAll(
-    @Query('category') category?: string,
-    @Query('status') status?: string,
-  ) {
-    if (category) {
-      // const KEY = `${this.CACHE_KEY}-${category}`;
-      // const data = await this.cacheManager.get<Product[]>(KEY);
-      // if (data) return data;
-      const newData = await this.productsService.findByCategory(category);
-      // await this.cacheManager.set(KEY, newData, 10000);
-      return newData;
-    }
-    if (status) {
-      // const KEY = `${this.CACHE_KEY}-${status}`;
-      // const data = await this.cacheManager.get<Product[]>(KEY);
-      // if (data) return data;
-      const newData = this.productsService.findByStatus(status);
-      // await this.cacheManager.set(KEY, newData, 10000);
-      return newData;
-    }
-
-    // const KEY = `${this.CACHE_KEY}`;
-    // const data = await this.cacheManager.get<Product[]>(KEY);
-    // if (data) return data;
-    const newData = this.productsService.findAll();
-    // await this.cacheManager.set(KEY, newData, 10000);
-    return newData;
+    @Query('page') page = 1,
+    @Query('pageSize') pageSize = 10,
+    @Query('query') query: string,
+    @Body()
+    body?: {
+      searchTerm?: string;
+      category?: string;
+      status?: string;
+    },
+  ): Promise<PaginatedResponse<Product>> {
+    const products = await this.productsService.findAll(page, pageSize, body);
+    return products;
   }
 
   @Get('search')

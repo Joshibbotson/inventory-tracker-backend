@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import { Product, ProductDocument } from '../schemas/product.schema';
 import {
   Material,
@@ -14,6 +14,7 @@ import { User } from '../../user/schemas/User.schema';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import * as fs from 'fs';
+import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 
 @Injectable()
 export class ProductsService {
@@ -22,13 +23,48 @@ export class ProductsService {
     @InjectModel(Material.name) private materialModel: Model<MaterialDocument>,
   ) {}
 
-  async findAll(): Promise<Product[]> {
-    return this.productModel
-      .find()
-      .populate('recipe.material')
-      .populate('recipe.unit')
-      .sort('-createdAt')
-      .exec();
+  async findAll(
+    page = 1,
+    pageSize = 10,
+    filters?: {
+      searchTerm?: string;
+      category?: string;
+      status?: string;
+    },
+  ): Promise<PaginatedResponse<Product>> {
+    const skip = (page - 1) * pageSize;
+
+    const query: FilterQuery<Material> = {};
+
+    if (filters?.searchTerm) {
+      query.$or = [
+        { name: { $regex: filters.searchTerm, $options: 'i' } },
+        { sku: { $regex: filters.searchTerm, $options: 'i' } },
+        { description: { $regex: filters.searchTerm, $options: 'i' } },
+        { category: { $regex: filters.searchTerm, $options: 'i' } },
+      ];
+    }
+    if (filters?.category) query.category = filters.category;
+    if (filters?.status) query.status = filters.status;
+
+    const [data, total] = await Promise.all([
+      this.productModel
+        .find(query)
+        .populate('recipe.material')
+        .populate('recipe.unit')
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(pageSize),
+
+      this.productModel.countDocuments(query),
+    ]);
+
+    return {
+      data,
+      page,
+      pageSize,
+      total,
+    };
   }
 
   async findOne(id: string): Promise<Product | null> {

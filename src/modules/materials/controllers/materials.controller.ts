@@ -48,27 +48,17 @@ export class MaterialsController {
       stockLevel?: StockLevel;
     },
   ): Promise<PaginatedResponse<Material>> {
-    // const KEY = `${this.CACHE_KEY}-findAll`;
-    // const materials =
-    //   await this.cacheManager.get<PaginatedResponse<Material>>(KEY);
-    // if (materials) return materials;
-
     const newMaterials = await this.materialsService.findAll(
       page,
       pageSize,
       body,
     );
-    // await this.cacheManager.set(KEY, newMaterials, 10000);
     return newMaterials;
   }
 
   @Get('statistics')
   async getStatistics(): Promise<MatertialStatistics> {
-    // const KEY = `${this.CACHE_KEY}-statistics`;
-    // const statistics = await this.cacheManager.get<MatertialStatistics>(KEY);
-    // if (statistics) return statistics;
     const newStatistics = await this.materialsService.getStatistics();
-    // await this.cacheManager.set(KEY, newStatistics, 10000);
     return newStatistics;
   }
 
