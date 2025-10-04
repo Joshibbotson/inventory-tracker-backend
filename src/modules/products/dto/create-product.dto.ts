@@ -42,9 +42,9 @@ export class CreateProductDto {
   @IsNotEmpty()
   name: string;
 
-  @IsString()
-  @IsNotEmpty()
-  sku: string;
+  // @IsString()
+  // @IsNotEmpty()
+  // sku: string;
 
   @IsString()
   @IsOptional()

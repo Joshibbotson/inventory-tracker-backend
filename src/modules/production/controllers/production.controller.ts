@@ -7,26 +7,19 @@ import {
   Query,
   HttpCode,
   BadRequestException,
-  Inject,
 } from '@nestjs/common';
 
 import { GetUser } from 'src/core/decorators/user.decorator';
-
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
 import { User } from 'src/modules/user/schemas/User.schema';
 import { ProductionBatch } from '../schemas/production-batch.schema';
 import { ProductionService } from '../services/production.service';
 import { RequireVerified } from 'src/core/decorators/require-verified.decorator';
+import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 
 @RequireVerified()
 @Controller('production')
 export class ProductionController {
-  private readonly CACHE_KEY = 'production';
-  constructor(
-    private readonly productionService: ProductionService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) {}
+  constructor(private readonly productionService: ProductionService) {}
 
   @Post('batch')
   async createProductionBatch(
@@ -47,18 +40,28 @@ export class ProductionController {
     );
   }
 
-  @Get('history')
+  @Post('history')
   async getProductionHistory(
-    @Query('productId') productId?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ): Promise<ProductionBatch[]> {
+    @Query('page') page = 1,
+    @Query('pageSize') pageSize = 10,
+    @Body()
+    body?: {
+      searchTerm?: string;
+      startDate?: Date;
+      endDate?: Date;
+    },
+  ): Promise<
+    PaginatedResponse<ProductionBatch> & {
+      summary?: {
+        activeUnits: number;
+        reversedUnits: number;
+        activeCost: number;
+        reversedCost: number;
+      };
+    }
+  > {
     const newProductionHistory =
-      await this.productionService.getProductionHistory(
-        productId,
-        startDate ? new Date(startDate) : undefined,
-        endDate ? new Date(endDate) : undefined,
-      );
+      await this.productionService.getProductionHistory(page, pageSize, body);
 
     return newProductionHistory;
   }

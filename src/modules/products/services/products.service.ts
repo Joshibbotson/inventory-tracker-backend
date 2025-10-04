@@ -15,6 +15,7 @@ import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import * as fs from 'fs';
 import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ProductsService {
@@ -132,13 +133,7 @@ export class ProductsService {
       imagePath = `/uploads/products/${file.filename}`;
     }
 
-    // Check if SKU already exists
-    const existingProduct = await this.productModel.findOne({
-      sku: createProductDto.sku,
-    });
-    if (existingProduct) {
-      throw new BadRequestException('Product with this SKU already exists');
-    }
+    const sku = this.createSku(createProductDto);
 
     // Validate recipe materials and units exist
     if (createProductDto.recipe && createProductDto.recipe.length > 0) {
@@ -152,6 +147,7 @@ export class ProductsService {
 
     const createdProduct = new this.productModel({
       ...createProductDto,
+      sku,
       recipe: createProductDto.recipe?.map((recipe) => ({
         ...recipe,
         material: new Types.ObjectId(recipe.material),
@@ -175,17 +171,6 @@ export class ProductsService {
       return null;
     }
 
-    // If updating SKU, check it doesn't already exist
-    if (updateProductDto.sku) {
-      const existingProduct = await this.productModel.findOne({
-        sku: updateProductDto.sku,
-        _id: { $ne: id },
-      });
-      if (existingProduct) {
-        throw new BadRequestException('Product with this SKU already exists');
-      }
-    }
-
     // Validate recipe materials if updating recipe
     if (updateProductDto.recipe && updateProductDto.recipe.length > 0) {
       for (const item of updateProductDto.recipe) {
@@ -195,7 +180,6 @@ export class ProductsService {
         }
       }
     }
-    console.log('file:', file);
     // Handle image upload
     let imageUrl = updateProductDto.imageUrl;
     if (file) {
@@ -377,5 +361,17 @@ export class ProductsService {
         $inc: { currentStock: -deductQuantity },
       });
     }
+  }
+
+  private createSku(createProductDto: CreateProductDto): string {
+    const CAT = createProductDto.category?.substring(0, 3).toUpperCase();
+    const NAME = createProductDto.name.substring(0, 3).toUpperCase();
+    const HASH = crypto
+      .createHash('md5')
+      .update(new Types.ObjectId().toString())
+      .digest('hex')
+      .substring(0, 3)
+      .toUpperCase();
+    return `${CAT}-${NAME}-${HASH}`;
   }
 }

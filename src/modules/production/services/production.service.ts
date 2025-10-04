@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, Model, Types } from 'mongoose';
+import { Connection, FilterQuery, Model, Types } from 'mongoose';
 import {
   Material,
   MaterialDocument,
@@ -110,28 +110,84 @@ export class ProductionService {
   }
 
   async getProductionHistory(
-    productId?: string,
-    startDate?: Date,
-    endDate?: Date,
-  ): Promise<ProductionBatch[]> {
-    const query: any = {};
+    page = 1,
+    pageSize = 10,
+    filters?: {
+      searchTerm?: string;
+      startDate?: Date;
+      endDate?: Date;
+    },
+  ): Promise<{
+    data: ProductionBatch[];
+    page: number;
+    pageSize: number;
+    total: number;
+    summary?: {
+      activeUnits: number;
+      reversedUnits: number;
+      activeCost: number;
+      reversedCost: number;
+    };
+  }> {
+    const query: FilterQuery<ProductionBatch> = {};
 
-    if (productId) {
-      query.product = productId;
+    // Handle date filtering
+    if (filters?.startDate && filters?.endDate) {
+      query.createdAt = {
+        $gte: filters.startDate,
+        $lte: filters.endDate,
+      };
     }
 
-    if (startDate && endDate) {
-      query.createdAt = { $gte: startDate, $lte: endDate };
-    }
-
-    query.isReversed = false;
-
-    return this.batchModel
+    // Get all matching batches with populated product
+    const allBatches = await this.batchModel
       .find(query)
       .populate('product')
       .populate('materialCosts.material')
-      .sort('-createdAt')
+      .sort({ createdAt: -1 })
       .exec();
+
+    // Filter by search term in memory if provided
+    let filteredBatches = allBatches;
+    if (filters?.searchTerm) {
+      const searchLower = filters.searchTerm.toLowerCase();
+      filteredBatches = allBatches.filter((batch) => {
+        const product = batch.product as any;
+        return (
+          batch.batchNumber?.toLowerCase().includes(searchLower) ||
+          product?.name?.toLowerCase().includes(searchLower) ||
+          product?.sku?.toLowerCase().includes(searchLower) ||
+          batch.notes?.toLowerCase().includes(searchLower)
+        );
+      });
+    }
+
+    // Paginate
+    const total = filteredBatches.length;
+    const skip = (page - 1) * pageSize;
+    const paginatedBatches = filteredBatches.slice(skip, skip + pageSize);
+
+    // Calculate summary
+    const summary = {
+      activeUnits: filteredBatches.reduce((sum, b) => sum + b.quantity, 0),
+      reversedUnits: filteredBatches.reduce(
+        (sum, b) => sum + (b.reversedQuantity || 0),
+        0,
+      ),
+      activeCost: filteredBatches.reduce((sum, b) => sum + b.totalCost, 0),
+      reversedCost: filteredBatches.reduce(
+        (sum, b) => sum + (b.reversedQuantity || 0) * b.unitCost,
+        0,
+      ),
+    };
+
+    return {
+      data: paginatedBatches,
+      page,
+      pageSize,
+      total,
+      summary,
+    };
   }
 
   async getProductionStats(productId: string): Promise<{
@@ -255,7 +311,7 @@ export class ProductionService {
         batch.reversedBy = new Types.ObjectId(userId);
         batch.reversedAt = new Date();
       }
-      batch.reversalAdjustments = [
+      batch.wasteAdjustments = [
         ...(batch.reversalAdjustments || []),
         productAdjustment._id,
       ];
