@@ -11,6 +11,7 @@ import { JwtAuthMiddleware } from './core/middleware/jwt-auth.middleware';
 import { ProductionModule } from './modules/production/production.module';
 import { MaterialOrderModule } from './modules/material-order/material-order.module';
 import { CacheModule } from '@nestjs/cache-manager';
+import { QuotesModule } from './modules/quotes/quotes.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CacheModule } from '@nestjs/cache-manager';
     StockAdjustmentsModule,
     UnitsModule,
     ProductionModule,
+    QuotesModule,
   ],
 })
 export class AppModule {

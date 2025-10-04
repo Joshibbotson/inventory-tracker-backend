@@ -43,7 +43,6 @@ export class ProductsController {
   async findAll(
     @Query('page') page = 1,
     @Query('pageSize') pageSize = 10,
-    @Query('query') query: string,
     @Body()
     body?: {
       searchTerm?: string;

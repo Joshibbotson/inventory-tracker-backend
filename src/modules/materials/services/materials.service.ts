@@ -24,7 +24,6 @@ export class MaterialsService {
       stockLevel?: StockLevel;
     },
   ): Promise<PaginatedResponse<Material>> {
-    console.log('filters:', filters);
     const skip = (page - 1) * pageSize;
 
     const query: FilterQuery<Material> = {};
