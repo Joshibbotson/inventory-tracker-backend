@@ -6,24 +6,18 @@ import {
   Body,
   Param,
   Query,
-  Inject,
 } from '@nestjs/common';
 import { MaterialOrderService } from '../services/material-order.service';
 import { GetUser } from 'src/core/decorators/user.decorator';
 import { User } from '../../user/schemas/User.schema';
 import { CreateMaterialOrderDto } from '../dto/CreateMaterialOrder.dto';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
 import { RequireVerified } from 'src/core/decorators/require-verified.decorator';
 
 @RequireVerified()
 @Controller('material-orders')
 export class MaterialOrderController {
   CACHE_KEY = `material-orders`;
-  constructor(
-    private readonly materialOrderService: MaterialOrderService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) {}
+  constructor(private readonly materialOrderService: MaterialOrderService) {}
 
   @Post()
   async createOrder(

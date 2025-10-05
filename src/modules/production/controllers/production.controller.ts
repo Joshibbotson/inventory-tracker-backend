@@ -66,9 +66,21 @@ export class ProductionController {
     return newProductionHistory;
   }
 
+  @Get('stats')
+  async getFullProductionStats() {
+    return this.productionService.getProductionStats();
+  }
+
+  @Get('full-stats')
+  async getProductionStats(
+    @Query('period') period: 'week' | 'month' | 'quarter' | '6months' | 'year',
+  ) {
+    return this.productionService.getFullProductionStats(period);
+  }
+
   @Get('stats/:productId')
-  async getProductionStats(@Param('productId') productId: string) {
-    return this.productionService.getProductionStats(productId);
+  async getProductionStatsByProduct(@Param('productId') productId: string) {
+    return this.productionService.getProductionStatsByProduct(productId);
   }
 
   @Get('batch/:id/can-reverse')

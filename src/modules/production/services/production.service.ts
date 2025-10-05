@@ -19,6 +19,22 @@ import {
   StockAdjustment,
 } from '../../stock-adjustments/schemas/stock-adjustment.schema';
 
+export interface ProductionStats {
+  totalBatches: number;
+  totalProductsProduced: number;
+  totalProductionCost: number;
+  averageBatchSize: number;
+}
+
+export interface FullProductionStats extends ProductionStats {
+  timeline: { date: string; totalQuantity: number; batchCount: number }[];
+  productTotals: {
+    productName: string;
+    totalQuantity: number;
+    batchCount: number;
+  }[];
+}
+
 @Injectable()
 export class ProductionService {
   constructor(
@@ -190,7 +206,7 @@ export class ProductionService {
     };
   }
 
-  async getProductionStats(productId: string): Promise<{
+  async getProductionStatsByProduct(productId: string): Promise<{
     totalProduced: number;
     averageBatchSize: number;
     averageUnitCost: number;
@@ -219,6 +235,253 @@ export class ProductionService {
       averageUnitCost,
       totalBatches,
       recentBatches,
+    };
+  }
+
+  // production.service.ts (inside your ProductionService)
+  async getFullProductionStats(
+    period: 'week' | 'month' | 'quarter' | '6months' | 'year' = 'month',
+  ) {
+    // compute date range
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+
+    if (period === 'week') startDate.setDate(endDate.getDate() - 7);
+    else if (period === 'month') startDate.setDate(endDate.getDate() - 30);
+    else if (period === 'quarter') startDate.setDate(endDate.getDate() - 90);
+    else if (period === '6months') startDate.setMonth(endDate.getMonth() - 6);
+    else if (period === 'year')
+      startDate.setFullYear(endDate.getFullYear() - 1);
+
+    // choose bucket unit
+    let bucketUnit: 'day' | 'week' | 'month' = 'day';
+    if (period === '6months' || period === 'year') bucketUnit = 'month';
+    else if (period === 'quarter') bucketUnit = 'week';
+
+    const timezone = 'Europe/London'; // use user's timezone
+
+    // overall totals
+    const overallAgg = await this.batchModel
+      .aggregate([
+        { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+        {
+          $group: {
+            _id: null,
+            totalBatches: { $sum: 1 },
+            totalProductsProduced: { $sum: '$quantity' },
+            totalProductionCost: { $sum: '$totalCost' },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            totalBatches: 1,
+            totalProductsProduced: 1,
+            totalProductionCost: 1,
+            averageBatchSize: {
+              $cond: [
+                { $gt: ['$totalBatches', 0] },
+                { $divide: ['$totalProductsProduced', '$totalBatches'] },
+                0,
+              ],
+            },
+          },
+        },
+      ])
+      .exec();
+
+    const overall =
+      overallAgg && overallAgg.length
+        ? overallAgg[0]
+        : {
+            totalBatches: 0,
+            totalProductsProduced: 0,
+            totalProductionCost: 0,
+            averageBatchSize: 0,
+          };
+
+    // timeline (bucketed)
+    const timeline = await this.batchModel
+      .aggregate([
+        { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+        {
+          // create a truncated date for the given unit
+          $addFields: {
+            bucketDate: {
+              $dateTrunc: { date: '$createdAt', unit: bucketUnit, timezone },
+            },
+          },
+        },
+        {
+          $group: {
+            _id: '$bucketDate',
+            totalQuantity: { $sum: '$quantity' },
+            batchCount: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+        {
+          // convert _id (Date) to formatted string and drop _id
+          $project: {
+            _id: 0,
+            date: {
+              $dateToString: { format: '%Y-%m-%d', date: '$_id', timezone },
+            },
+            totalQuantity: 1,
+            batchCount: 1,
+          },
+        },
+      ])
+      .exec();
+
+    // top products
+    const productTotals = await this.batchModel
+      .aggregate([
+        { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+        {
+          $group: {
+            _id: '$product',
+            totalQuantity: { $sum: '$quantity' },
+            batchCount: { $sum: 1 },
+          },
+        },
+        { $sort: { totalQuantity: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: 'products',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'product',
+          },
+        },
+        { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 0,
+            productId: '$_id',
+            productName: '$product.name',
+            totalQuantity: 1,
+            batchCount: 1,
+          },
+        },
+      ])
+      .exec();
+
+    // round numbers if you like
+    const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+    return {
+      totalBatches: overall.totalBatches,
+      totalProductsProduced: round(overall.totalProductsProduced || 0),
+      totalProductionCost: round(overall.totalProductionCost || 0),
+      averageBatchSize: round(overall.averageBatchSize || 0),
+      timeline,
+      productTotals,
+    };
+  }
+
+  // Aggregate across production batches:
+  // - treat null reversed/wasted as 0
+  // - compute netQty = quantity - (reversedQuantity + wastedQuantity)
+  // - prorate reversed/wasted cost = ((reversed+wasted) / quantity) * totalCost (when quantity > 0)
+  // - netCost = totalCost - proratedReversedCost
+  async getProductionStats(): Promise<ProductionStats> {
+    const result = await this.batchModel
+      .aggregate([
+        {
+          $addFields: {
+            reversedQty: { $ifNull: ['$reversedQuantity', 0] },
+            wastedQty: { $ifNull: ['$wastedQuantity', 0] },
+          },
+        },
+        {
+          $project: {
+            quantity: 1,
+            totalCost: 1,
+            netQty: {
+              $subtract: [
+                '$quantity',
+                { $add: ['$reversedQty', '$wastedQty'] },
+              ],
+            },
+            // prorated reversal/waste cost; if quantity === 0 -> 0
+            netCost: {
+              $cond: [
+                { $gt: ['$quantity', 0] },
+                {
+                  $subtract: [
+                    '$totalCost',
+                    {
+                      $multiply: [
+                        {
+                          $divide: [
+                            { $add: ['$reversedQty', '$wastedQty'] },
+                            '$quantity',
+                          ],
+                        },
+                        '$totalCost',
+                      ],
+                    },
+                  ],
+                },
+                '$totalCost',
+              ],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalBatches: { $sum: 1 },
+            totalProductsProduced: {
+              // ensure we don't accumulate negative netQty if reversed > quantity
+              $sum: {
+                $cond: [{ $gt: ['$netQty', 0] }, '$netQty', 0],
+              },
+            },
+            totalProductionCost: { $sum: '$netCost' },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            totalBatches: 1,
+            totalProductsProduced: 1,
+            totalProductionCost: 1,
+            averageBatchSize: {
+              $cond: [
+                { $gt: ['$totalBatches', 0] },
+                { $divide: ['$totalProductsProduced', '$totalBatches'] },
+                0,
+              ],
+            },
+          },
+        },
+      ])
+      .exec();
+
+    if (!result || result.length === 0) {
+      return {
+        totalBatches: 0,
+        totalProductsProduced: 0,
+        totalProductionCost: 0,
+        averageBatchSize: 0,
+      };
+    }
+
+    const stats = result[0];
+
+    // Optionally round numeric values to two decimals
+    const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+    return {
+      totalBatches: stats.totalBatches || 0,
+      totalProductsProduced: round(stats.totalProductsProduced || 0),
+      totalProductionCost: round(stats.totalProductionCost || 0),
+      averageBatchSize: round(stats.averageBatchSize || 0),
     };
   }
 
