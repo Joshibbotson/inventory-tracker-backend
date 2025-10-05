@@ -18,6 +18,7 @@ import { Cache } from 'cache-manager';
 import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 import { StockLevel } from '../enums/StockLevel.enum';
 import { RequireVerified } from 'src/core/decorators/require-verified.decorator';
+import { CreateMaterial } from '../types/CreateMaterial';
 
 export type MatertialStatistics = {
   totalMaterials: number;
@@ -77,7 +78,8 @@ export class MaterialsController {
 
   @Post()
   async create(
-    @Body() createMaterialDto: Partial<Omit<Material, 'currentStock'>>,
+    @Body()
+    createMaterialDto: CreateMaterial,
   ): Promise<Material> {
     return this.materialsService.create(createMaterialDto);
   }

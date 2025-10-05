@@ -8,6 +8,8 @@ import {
 } from '../schemas/material.schema';
 import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 import { StockLevel } from '../enums/StockLevel.enum';
+import { CreateMaterial } from '../types/CreateMaterial';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class MaterialsService {
@@ -78,9 +80,10 @@ export class MaterialsService {
     return this.materialModel.findById(id).populate('unit').exec();
   }
 
-  async create(createMaterialDto: Partial<Material>): Promise<Material> {
+  async create(createMaterialDto: CreateMaterial): Promise<Material> {
     const created = new this.materialModel({
       ...createMaterialDto,
+      sku: this.createSku(createMaterialDto),
       currentStock: 0, // always default to 0 starting stock
     });
     return created.save();
@@ -196,5 +199,17 @@ export class MaterialsService {
   // Placeholder — you’ll likely want a separate StockAdjustment model here
   async getAdjustmentHistory(id: string) {
     return []; // implement with StockAdjustment schema
+  }
+
+  private createSku(createMaterial: CreateMaterial): string {
+    const CAT = createMaterial.category?.substring(0, 3).toUpperCase();
+    const NAME = createMaterial.name?.substring(0, 3).toUpperCase();
+    const HASH = crypto
+      .createHash('md5')
+      .update(new Types.ObjectId().toString())
+      .digest('hex')
+      .substring(0, 3)
+      .toUpperCase();
+    return `${CAT}-${NAME}-${HASH}`;
   }
 }

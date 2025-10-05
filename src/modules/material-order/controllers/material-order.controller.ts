@@ -11,7 +11,7 @@ import {
 import { MaterialOrderService } from '../services/material-order.service';
 import { GetUser } from 'src/core/decorators/user.decorator';
 import { User } from '../../user/schemas/User.schema';
-import { CreateMaterialDto } from '../dto/CreateMaterialOrder.dto';
+import { CreateMaterialOrderDto } from '../dto/CreateMaterialOrder.dto';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { RequireVerified } from 'src/core/decorators/require-verified.decorator';
@@ -28,33 +28,24 @@ export class MaterialOrderController {
   @Post()
   async createOrder(
     @Body()
-    body: CreateMaterialDto,
+    body: CreateMaterialOrderDto,
     @GetUser() user: User,
   ) {
     return await this.materialOrderService.createOrder(body, user._id!);
   }
 
-  @Get()
+  @Post('find-all')
   async getOrders(
     @Query('page') page = 1,
     @Query('pageSize') pageSize = 10,
-    @Query('materialId') materialId?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @Body() body: { materialId?: string; startDate?: string; endDate?: string },
   ) {
-    // const KEY = `${this.CACHE_KEY}-${materialId}-${startDate}-${endDate}`;
-    // const orders = await this.cacheManager.get<MaterialOrderDocument[]>(KEY);
-    // if (orders) return orders;
-
-    const newOrdersData = await this.materialOrderService.getOrders(
+    const ordersData = await this.materialOrderService.getOrders(
       page,
       pageSize,
-      materialId,
-      startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined,
+      body,
     );
-    // await this.cacheManager.set(KEY, newOrdersData, 10000);
-    return newOrdersData;
+    return ordersData;
   }
 
   @Get(':id')

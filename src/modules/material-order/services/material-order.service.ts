@@ -9,7 +9,7 @@ import {
   MaterialOrderDocument,
 } from '../schemas/material-order.schema';
 import { Model, Types } from 'mongoose';
-import { CreateMaterialDto } from '../dto/CreateMaterialOrder.dto';
+import { CreateMaterialOrderDto } from '../dto/CreateMaterialOrder.dto';
 import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 
 @Injectable()
@@ -20,7 +20,7 @@ export class MaterialOrderService {
   ) {}
 
   async createOrder(
-    orderDto: CreateMaterialDto,
+    orderDto: CreateMaterialOrderDto,
     userId: string,
   ): Promise<MaterialOrder> {
     const material = await this.materialModel.findById(orderDto.material);
@@ -66,19 +66,17 @@ export class MaterialOrderService {
   async getOrders(
     page = 1,
     pageSize = 10,
-    materialId?: string,
-    startDate?: Date,
-    endDate?: Date,
+    filters: { materialId?: string; startDate?: string; endDate?: string },
   ): Promise<PaginatedResponse<MaterialOrderDocument>> {
     const query: any = {};
     const skip = (page - 1) * pageSize;
 
-    if (materialId) {
-      query.material = materialId;
+    if (filters.materialId) {
+      query.material = new Types.ObjectId(filters.materialId);
     }
 
-    if (startDate && endDate) {
-      query.createdAt = { $gte: startDate, $lte: endDate };
+    if (filters.startDate && filters.endDate) {
+      query.createdAt = { $gte: filters.startDate, $lte: filters.endDate };
     }
 
     const [data, total] = await Promise.all([
@@ -87,8 +85,7 @@ export class MaterialOrderService {
         .populate('material')
         .sort('-createdAt')
         .skip(skip)
-        .limit(pageSize)
-        .exec(),
+        .limit(pageSize),
       this.orderModel.countDocuments(query),
     ]);
 

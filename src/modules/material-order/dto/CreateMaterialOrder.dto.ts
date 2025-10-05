@@ -1,6 +1,6 @@
 import { IsOptional, IsPositive, IsString } from 'class-validator';
 
-export class CreateMaterialDto {
+export class CreateMaterialOrderDto {
   @IsString()
   material: string;
 
