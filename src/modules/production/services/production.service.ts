@@ -507,9 +507,9 @@ export class ProductionService {
       throw new NotFoundException('Production batch not found');
     }
 
-    const alreadyReversedQty =
-      batch.reversedQuantity || 0 + batch.wastedQuantity || 0;
-    const remainingQty = batch.quantity - alreadyReversedQty;
+    const alreadyWastedQty =
+      (batch.reversedQuantity || 0) + (batch.wastedQuantity || 0);
+    const remainingQty = batch.quantity - alreadyWastedQty;
 
     if (quantity > remainingQty) {
       throw new BadRequestException(
@@ -518,12 +518,6 @@ export class ProductionService {
     }
 
     return await this.connection.transaction(async () => {
-      batch.wastedQuantity = quantity;
-      batch.isWasted = remainingQty - quantity === 0;
-      batch.wasteReason = reason;
-      batch.wasteBy = new Types.ObjectId(userId);
-      batch.wasteAt = new Date();
-
       // Get product
       const product = await this.productModel.findById(batch.product);
       if (!product) {
@@ -533,11 +527,9 @@ export class ProductionService {
       // Check stock available for waste
       if (product.currentStock < quantity) {
         throw new BadRequestException(
-          `Cannot reverse production. Only ${product.currentStock} units available, but ${quantity} units need to be reversed.`,
+          `Cannot waste production. Only ${product.currentStock} units available, but ${quantity} units need to be wasted.`,
         );
       }
-
-      await batch.save();
 
       const previousProductStock = product.currentStock;
       const newProductStock = previousProductStock - quantity;
@@ -567,17 +559,17 @@ export class ProductionService {
         adjustedBy: new Types.ObjectId(userId),
       });
 
-      batch.reversedQuantity = alreadyReversedQty + quantity;
-      if (batch.reversedQuantity >= batch.quantity) {
-        batch.isReversed = true;
-        batch.reversalReason = reason;
-        batch.reversedBy = new Types.ObjectId(userId);
-        batch.reversedAt = new Date();
-      }
+      // Update batch waste properties
+      batch.wastedQuantity = (batch.wastedQuantity || 0) + quantity;
+      batch.isWasted = batch.wastedQuantity >= batch.quantity;
+      batch.wasteReason = reason;
+      batch.wasteBy = new Types.ObjectId(userId);
+      batch.wasteAt = new Date();
       batch.wasteAdjustments = [
-        ...(batch.reversalAdjustments || []),
+        ...(batch.wasteAdjustments || []),
         productAdjustment._id,
       ];
+
       await batch.save();
 
       return {

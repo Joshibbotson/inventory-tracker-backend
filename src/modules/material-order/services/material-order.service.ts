@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import {
   Material,
   MaterialDocument,
@@ -8,13 +8,14 @@ import {
   MaterialOrder,
   MaterialOrderDocument,
 } from '../schemas/material-order.schema';
-import { Model, Types } from 'mongoose';
+import { Connection, Model, Types } from 'mongoose';
 import { CreateMaterialOrderDto } from '../dto/CreateMaterialOrder.dto';
 import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 
 @Injectable()
 export class MaterialOrderService {
   constructor(
+    @InjectConnection() private readonly connection: Connection,
     @InjectModel(MaterialOrder.name) private orderModel: Model<MaterialOrder>,
     @InjectModel(Material.name) private materialModel: Model<MaterialDocument>,
   ) {}
@@ -114,14 +115,26 @@ export class MaterialOrderService {
       throw new BadRequestException('Cannot delete order - stock already used');
     }
 
-    // Reverse the stock addition
-    material.currentStock -= order.quantity;
+    return await this.connection.transaction(async () => {
+      const previousStock = material.currentStock;
+      const newStock = previousStock - order.quantity;
 
-    // Recalculate average cost (simplified - in production you'd track all orders)
-    // This is a simplification and may not be perfectly accurate
-    await material.save();
+      // Recalculate average cost
+      const currentTotalValue = previousStock * material.averageCost;
+      const removedValue = order.quantity * order.unitCost;
+      const newTotalValue = Math.max(0, currentTotalValue - removedValue);
 
-    await this.orderModel.deleteOne({ _id: orderId });
+      if (newStock > 0) {
+        material.averageCost = newTotalValue / newStock;
+      } else {
+        material.averageCost = 0;
+      }
+
+      material.currentStock = newStock;
+      await material.save();
+
+      await this.orderModel.deleteOne({ _id: orderId });
+    });
   }
 
   async getOrderStats(materialId: string): Promise<{
