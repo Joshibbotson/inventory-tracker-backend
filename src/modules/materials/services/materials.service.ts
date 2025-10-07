@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
 import {
@@ -10,11 +10,23 @@ import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 import { StockLevel } from '../enums/StockLevel.enum';
 import { CreateMaterial } from '../types/CreateMaterial';
 import * as crypto from 'crypto';
+import {
+  MaterialOrder,
+  MaterialOrderDocument,
+} from 'src/modules/material-order/schemas/material-order.schema';
+import {
+  Product,
+  ProductDocument,
+} from 'src/modules/products/schemas/product.schema';
 
 @Injectable()
 export class MaterialsService {
   constructor(
     @InjectModel(Material.name) private materialModel: Model<MaterialDocument>,
+    @InjectModel(MaterialOrder.name)
+    private materialOrdersModel: Model<MaterialOrderDocument>,
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
   ) {}
 
   async findAll(
@@ -61,6 +73,7 @@ export class MaterialsService {
       this.materialModel
         .find(query)
         .populate('unit')
+        .sort('name')
         .skip(skip)
         .limit(pageSize)
         .exec(),
@@ -102,6 +115,20 @@ export class MaterialsService {
 
   async remove(id: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(id)) return false;
+
+    const _id = new Types.ObjectId(id);
+    const existInMaterialOrders = await this.materialOrdersModel.exists({
+      material: _id,
+    });
+
+    const existsInProduct = await this.productModel.exists({
+      'recipe.material': _id,
+    });
+
+    if (existInMaterialOrders || existsInProduct)
+      throw new BadRequestException(
+        'Material has been used in either a product or material order so cannot be deleted. If you no longer wish to use this Material please update it to no longer be active. ',
+      );
     const res = await this.materialModel.findByIdAndDelete(id).exec();
     return !!res;
   }
@@ -124,17 +151,19 @@ export class MaterialsService {
       .exec();
   }
 
-  async search(query: string): Promise<Material[]> {
-    return this.materialModel
-      .find({
-        $or: [
-          { name: { $regex: query, $options: 'i' } },
-          { sku: { $regex: query, $options: 'i' } },
-          { supplier: { $regex: query, $options: 'i' } },
-        ],
-      })
-      .populate('unit')
-      .exec();
+  async search(query: string, isActive?: boolean): Promise<Material[]> {
+    const filter: FilterQuery<MaterialDocument> = {
+      $or: [
+        { name: { $regex: query, $options: 'i' } },
+        { sku: { $regex: query, $options: 'i' } },
+        { supplier: { $regex: query, $options: 'i' } },
+      ],
+    };
+
+    if (isActive !== undefined) {
+      filter.isActive = isActive;
+    }
+    return this.materialModel.find(filter).populate('unit').exec();
   }
 
   async getStatistics(): Promise<{

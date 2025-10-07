@@ -72,8 +72,11 @@ export class MaterialsController {
   }
 
   @Get('search')
-  async search(@Query('q') query: string): Promise<Material[]> {
-    return this.materialsService.search(query);
+  async search(
+    @Query('q') query: string,
+    @Query('isActive') isActive?: boolean,
+  ): Promise<Material[]> {
+    return this.materialsService.search(query, isActive);
   }
 
   @Post()

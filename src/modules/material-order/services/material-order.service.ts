@@ -83,7 +83,12 @@ export class MaterialOrderService {
     const [data, total] = await Promise.all([
       this.orderModel
         .find(query)
-        .populate('material')
+        .populate({
+          path: 'material',
+          populate: {
+            path: 'unit',
+          },
+        })
         .sort('-createdAt')
         .skip(skip)
         .limit(pageSize),
