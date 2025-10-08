@@ -55,8 +55,11 @@ export class ProductsController {
   }
 
   @Get('search')
-  async search(@Query('q') query: string): Promise<Product[]> {
-    return await this.productsService.search(query);
+  async search(
+    @Query('q') query: string,
+    @Query('isActive') isActive?: boolean,
+  ): Promise<Product[]> {
+    return await this.productsService.search(query, isActive);
   }
 
   @Get('active')

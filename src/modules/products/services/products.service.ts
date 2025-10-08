@@ -5,7 +5,11 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
-import { Product, ProductDocument } from '../schemas/product.schema';
+import {
+  Product,
+  ProductDocument,
+  ProductStatus,
+} from '../schemas/product.schema';
 import {
   Material,
   MaterialDocument,
@@ -16,11 +20,17 @@ import { UpdateProductDto } from '../dto/update-product.dto';
 import * as fs from 'fs';
 import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 import * as crypto from 'crypto';
+import {
+  ProductionBatch,
+  ProductionBatchDocument,
+} from 'src/modules/production/schemas/production-batch.schema';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(ProductionBatch.name)
+    private productionBatchModel: Model<ProductionBatchDocument>,
     @InjectModel(Material.name) private materialModel: Model<MaterialDocument>,
   ) {}
 
@@ -107,18 +117,22 @@ export class ProductsService {
       .exec();
   }
 
-  async search(query: string): Promise<Product[]> {
-    return this.productModel
-      .find({
-        $or: [
-          { name: { $regex: query, $options: 'i' } },
-          { sku: { $regex: query, $options: 'i' } },
-          { description: { $regex: query, $options: 'i' } },
-        ],
-      })
+  async search(query: string, isActive?: boolean): Promise<Product[]> {
+    const filter: FilterQuery<MaterialDocument> = {
+      $or: [
+        { name: { $regex: query, $options: 'i' } },
+        { sku: { $regex: query, $options: 'i' } },
+        { description: { $regex: query, $options: 'i' } },
+      ],
+    };
+
+    if (isActive !== undefined) {
+      filter.status = { $ne: ProductStatus.DISCONTINUED };
+    }
+    return await this.productModel
+      .find(filter)
       .populate('recipe.material')
-      .populate('recipe.unit')
-      .exec();
+      .populate('recipe.unit');
   }
 
   async create(
@@ -224,6 +238,14 @@ export class ProductsService {
     if (!Types.ObjectId.isValid(id)) {
       return false;
     }
+
+    const existsInProductionBatch = await this.productionBatchModel.exists({
+      product: new Types.ObjectId(id),
+    });
+    if (existsInProductionBatch)
+      throw new BadRequestException(
+        'Product already exists in a production batch so cannot be deleted. Please change its status to discontinued instead',
+      );
 
     const deletedProduct = await this.productModel.findOneAndDelete({
       _id: id,
