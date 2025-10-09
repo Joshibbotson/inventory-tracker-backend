@@ -19,6 +19,7 @@ import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
 import { StockLevel } from '../enums/StockLevel.enum';
 import { RequireVerified } from 'src/core/decorators/require-verified.decorator';
 import { CreateMaterial } from '../types/CreateMaterial';
+import { MaterialListStats } from '../types/MaterialListStats';
 
 export type MatertialStatistics = {
   totalMaterials: number;
@@ -47,7 +48,9 @@ export class MaterialsController {
       category?: MaterialCategory;
       stockLevel?: StockLevel;
     },
-  ): Promise<PaginatedResponse<Material>> {
+  ): Promise<
+    PaginatedResponse<Material> & { materialStats: MaterialListStats }
+  > {
     const newMaterials = await this.materialsService.findAll(
       page,
       pageSize,

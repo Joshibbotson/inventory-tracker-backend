@@ -18,6 +18,7 @@ import {
   Product,
   ProductDocument,
 } from 'src/modules/products/schemas/product.schema';
+import { MaterialListStats } from '../types/MaterialListStats';
 
 @Injectable()
 export class MaterialsService {
@@ -37,7 +38,9 @@ export class MaterialsService {
       category?: MaterialCategory;
       stockLevel?: StockLevel;
     },
-  ): Promise<PaginatedResponse<Material>> {
+  ): Promise<
+    PaginatedResponse<Material> & { materialStats: MaterialListStats }
+  > {
     const skip = (page - 1) * pageSize;
 
     const query: FilterQuery<Material> = {};
@@ -69,7 +72,9 @@ export class MaterialsService {
       }
     }
 
-    const [data, total] = await Promise.all([
+    // Run all queries in parallel for better performance
+    const [data, total, stats] = await Promise.all([
+      // Get paginated data
       this.materialModel
         .find(query)
         .populate('unit')
@@ -77,7 +82,12 @@ export class MaterialsService {
         .skip(skip)
         .limit(pageSize)
         .exec(),
-      this.materialModel.countDocuments(query).exec(), // ✅ apply same filters
+
+      // Get total count for pagination
+      this.materialModel.countDocuments(query),
+
+      // Get statistics using aggregation
+      this.getFindAllStatistics(query),
     ]);
 
     return {
@@ -85,6 +95,53 @@ export class MaterialsService {
       page,
       pageSize,
       total,
+      materialStats: {
+        totalMaterials: stats.totalMaterials,
+        totalInventoryValue: stats.totalInventoryValue,
+        lowStockItems: stats.lowStockItems,
+      },
+    };
+  }
+
+  private async getFindAllStatistics(
+    query: FilterQuery<Material>,
+  ): Promise<MaterialListStats> {
+    const pipeline = [
+      // Apply the same filters as the main query
+      { $match: query },
+
+      // Group and calculate statistics
+      {
+        $group: {
+          _id: null,
+          totalMaterials: { $sum: 1 },
+          totalInventoryValue: {
+            $sum: { $multiply: ['$currentStock', '$averageCost'] },
+          },
+          lowStockItems: {
+            $sum: {
+              $cond: [{ $lte: ['$currentStock', '$minimumStock'] }, 1, 0],
+            },
+          },
+        },
+      },
+    ];
+
+    const result = await this.materialModel.aggregate(pipeline).exec();
+
+    // If no results (empty collection or no matches), return defaults
+    if (result.length === 0) {
+      return {
+        totalMaterials: 0,
+        totalInventoryValue: 0,
+        lowStockItems: 0,
+      };
+    }
+
+    return {
+      totalMaterials: result[0].totalMaterials || 0,
+      totalInventoryValue: result[0].totalInventoryValue || 0,
+      lowStockItems: result[0].lowStockItems || 0,
     };
   }
 
