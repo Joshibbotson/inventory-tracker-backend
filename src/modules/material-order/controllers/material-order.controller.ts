@@ -16,7 +16,6 @@ import { RequireVerified } from 'src/core/decorators/require-verified.decorator'
 @RequireVerified()
 @Controller('material-orders')
 export class MaterialOrderController {
-  CACHE_KEY = `material-orders`;
   constructor(private readonly materialOrderService: MaterialOrderService) {}
 
   @Post()

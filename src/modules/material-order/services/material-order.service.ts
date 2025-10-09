@@ -8,9 +8,10 @@ import {
   MaterialOrder,
   MaterialOrderDocument,
 } from '../schemas/material-order.schema';
-import { Connection, Model, Types } from 'mongoose';
+import { Connection, FilterQuery, Model, Types } from 'mongoose';
 import { CreateMaterialOrderDto } from '../dto/CreateMaterialOrder.dto';
 import { PaginatedResponse } from 'src/core/types/PaginatedResponse';
+import { OrderListStats } from '../types/OrderListStats';
 
 @Injectable()
 export class MaterialOrderService {
@@ -68,7 +69,11 @@ export class MaterialOrderService {
     page = 1,
     pageSize = 10,
     filters: { materialId?: string; startDate?: string; endDate?: string },
-  ): Promise<PaginatedResponse<MaterialOrderDocument>> {
+  ): Promise<
+    PaginatedResponse<MaterialOrderDocument> & {
+      orderListStats: OrderListStats;
+    }
+  > {
     const query: any = {};
     const skip = (page - 1) * pageSize;
 
@@ -80,7 +85,7 @@ export class MaterialOrderService {
       query.createdAt = { $gte: filters.startDate, $lte: filters.endDate };
     }
 
-    const [data, total] = await Promise.all([
+    const [data, total, orderListStats] = await Promise.all([
       this.orderModel
         .find(query)
         .populate({
@@ -93,6 +98,7 @@ export class MaterialOrderService {
         .skip(skip)
         .limit(pageSize),
       this.orderModel.countDocuments(query),
+      this.getOrderStatistics(query),
     ]);
 
     return {
@@ -100,6 +106,46 @@ export class MaterialOrderService {
       page,
       pageSize,
       total,
+      orderListStats,
+    };
+  }
+
+  private async getOrderStatistics(
+    query: FilterQuery<MaterialOrder>,
+  ): Promise<OrderListStats> {
+    const pipeline = [
+      // Apply the same filters as the main query
+      { $match: query },
+
+      // Group and calculate statistics
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalSpent: { $sum: '$totalCost' },
+          totalUnits: { $sum: '$quantity' },
+          averageOrderValue: { $avg: '$totalCost' },
+        },
+      },
+    ];
+
+    const result = await this.orderModel.aggregate(pipeline).exec();
+
+    // If no results (empty collection or no matches), return defaults
+    if (result.length === 0) {
+      return {
+        totalOrders: 0,
+        totalSpent: 0,
+        totalUnits: 0,
+        averageOrderValue: 0,
+      };
+    }
+
+    return {
+      totalOrders: result[0].totalOrders,
+      totalSpent: result[0].totalSpent,
+      totalUnits: result[0].totalUnits,
+      averageOrderValue: result[0].averageOrderValue,
     };
   }
 
