@@ -2,15 +2,9 @@ export function getAllowedOrigins(): string[] {
   const env = process.env.NODE_ENV;
 
   if (env === 'production') {
-    return [
-      'http://192.168.1.1:4200',
-      'https://stock-checker-supreme.netlify.app',
-    ];
+    return ['http://192.168.1.1:4200', 'https://kirrou.netlify.app'];
   } else if (env === 'staging') {
-    return [
-      'https://stock-checker-supreme.netlify.app',
-      'capacitor://localhost',
-    ];
+    return ['https://kirrou-staging.netlify.app', 'capacitor://localhost'];
   } else {
     return ['http://localhost:4200', 'http://127.0.0.1:4200'];
   }
